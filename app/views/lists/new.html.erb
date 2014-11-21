@@ -1,0 +1,6 @@
+<%= form_for @list, url: {action: "create"}, html: {method: "post"} do |f| %>
+  <div class="form_block primary">
+    <%= f.text_field :name, :value => "", :placeholder => "Name your freaking list" %>
+    <%= f.submit("make my freaking list!") %>
+  </div>
+<% end %>
