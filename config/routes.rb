@@ -5,7 +5,9 @@ GimmePresents::Application.routes.draw do
   # You can have the root of your site routed with "root"
   root 'lists#new'
   get ':id' => 'lists#show'
+  get '/edit/:id' => 'lists#edit'
   post 'create' => 'lists#create'
+  post 'update' => 'lists#update'
   
   post 'gifts/create' => 'gifts#create'
   post 'gifts/update' => 'gifts#update'

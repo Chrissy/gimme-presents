@@ -1,4 +1,5 @@
 <%= @list.name %>
+<%= link_to "edit", @list.edit_link if @list.user = session[:user_id] %>
 <%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action %>
 
 <% @list.gifts.each do |gift| %>

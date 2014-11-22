@@ -7,11 +7,18 @@ class ListsController < ApplicationController
   
   def new
     @list = List.new
+    @action = "create"
   end
   
   def update
     list = List.find(params[:id])
     list.update_attributes(list_params)
+    redirect_to list.url
+  end
+  
+  def edit
+    @list = List.find(params[:id])
+    @action = "update"
   end
   
   def create
