@@ -4,8 +4,6 @@
     <%= f.text_field :url, :placeholder => "A link to your sweet present" %>
     <%= f.text_field :image, :placeholder => "A link to a picture of the present" %>
     <%= f.text_field :price, :placeholder => "How much it cost?" %>
-    <%= f.text_field :order, :value => gift.order.present? ? gift.order : list.gifts.count, :type => "#{'hidden' if action == "create"}" %>
-
     <%= f.submit("#{action} my sweet gift!") %>
   </div>
 <% end %>

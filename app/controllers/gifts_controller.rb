@@ -23,6 +23,18 @@ class GiftsController < ApplicationController
     @list = @gift.list
   end
   
+  def move_up
+    gift = Gift.find(params[:id])
+    gift.move_higher
+    redirect_to gift.list.url 
+  end
+  
+  def move_down
+    gift = Gift.find(params[:id])
+    gift.move_lower
+    redirect_to gift.list.url 
+  end
+  
   private
 
   def gift_params
