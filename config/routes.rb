@@ -8,6 +8,9 @@ GimmePresents::Application.routes.draw do
   post 'create' => 'lists#create'
   
   post 'gifts/create' => 'gifts#create'
+  post 'gifts/update' => 'gifts#update'
+  get 'gifts/edit/:id' => 'gifts#edit'
+  get 'gifts/delete/:id' => 'gifts#delete'
 
   # Example of regular route:
   #   get 'products/:id' => 'catalog#view'

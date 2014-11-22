@@ -1,0 +1,10 @@
+<%= form_for gift, url: {controller: "gifts", action: action, list_id: list.id, id: gift.id}, html: {method: "post"} do |f| %>
+  <div class="form_block primary">
+    <%= f.text_field :name, :placeholder => "Sweet Present Name" %>
+    <%= f.text_field :url, :placeholder => "A link to your sweet present" %>
+    <%= f.text_field :image, :placeholder => "A link to a picture of the present" %>
+    <%= f.text_field :price, :placeholder => "How much it cost?" %>
+
+    <%= f.submit("#{action} my sweet gift!") %>
+  </div>
+<% end %>

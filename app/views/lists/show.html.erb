@@ -1,20 +1,13 @@
 <%= @list.name %>
 
-<%= form_for @gift, url: {controller: "gifts", action: "create", list_id: @list.id, id: @gift.id}, html: {method: "post"} do |f| %>
-  <div class="form_block primary">
-    <%= f.text_field :name, :value => "", :placeholder => "Sweet Present Name" %>
-    <%= f.text_field :url, :value => "", :placeholder => "A link to your sweet present" %>
-    <%= f.text_field :image, :value => "", :placeholder => "A link to a picture of the present" %>
-    <%= f.text_field :price, :value => "", :placeholder => "How much it cost?" %>
-
-    <%= f.submit("add my sweet gift!") %>
-  </div>
-<% end %>
+<%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action %>
 
 <% @list.gifts.each do |gift| %>
   <div class="gift">
     <%= image_tag gift.image %>
     <%= link_to gift.name, gift.url %>
     <%= gift.price %>
+    <%= link_to "delete", controller: "gifts", action: "delete", id: gift.id %>
+    <%= link_to "edit", gift.edit_link %>
   </div>
 <% end %>

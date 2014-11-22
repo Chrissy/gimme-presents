@@ -2,6 +2,7 @@ class ListsController < ApplicationController
   def show
     @list = List.find(params[:id])
     @gift = Gift.new
+    @action = "create"
   end
   
   def new
