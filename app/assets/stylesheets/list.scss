@@ -4,13 +4,27 @@
 }
 
 .edit-gift-container {
-  width: 270px;
-  padding: 20px 0px 20px 20px;
-  border: 1px solid #ccc;
   position: absolute;
   bottom: 0;
   left: 35px;
-  input[type="text"] { margin-bottom: 10px; }
   &.hidden { display: none; }
   &.active { display: block; }
+}
+
+.new_gift, .edit_gift {
+  width: 270px;
+  padding: 20px 0px 20px 20px;
+  border: 1px solid #ccc;
+  .add-message { display: none; }
+  input[type="text"] { margin-bottom: 10px; }
+}
+
+.new_gift {
+  position: absolute;
+  right: 10px;
+  top: 10px;
+  .add-message {
+    display: block;
+    margin-top: 0;
+  }
 }
