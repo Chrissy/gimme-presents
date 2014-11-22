@@ -1,5 +1,5 @@
 class List < ActiveRecord::Base
-  has_many :gifts
+  has_many :gifts, -> { order("position DESC")}
   
   def url
     "/#{id}"

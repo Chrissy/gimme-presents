@@ -11,7 +11,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema.define(version: 20141122195935) do
+ActiveRecord::Schema.define(version: 20141122204925) do
 
   create_table "gifts", force: true do |t|
     t.integer  "list_id"
@@ -22,6 +22,7 @@ ActiveRecord::Schema.define(version: 20141122195935) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.integer  "order"
+    t.integer  "position"
   end
 
   create_table "lists", force: true do |t|
@@ -30,6 +31,7 @@ ActiveRecord::Schema.define(version: 20141122195935) do
     t.datetime "created_at"
     t.datetime "updated_at"
     t.integer  "user"
+    t.integer  "order"
   end
 
   create_table "users", force: true do |t|
