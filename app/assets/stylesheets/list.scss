@@ -18,7 +18,8 @@ body {
   text-align: center;
   position: relative;
   color: green;
-  margin-top: 15px;
+  max-width: 1000px;
+  margin: 15px auto;
 }
 
 .edit-list-title {
@@ -61,7 +62,7 @@ body {
 .new_gift {
   position: absolute;
   right: 10px;
-  top: 20%;
+  top: 30%;
   .add-message {
     display: block;
     margin-top: 0;
