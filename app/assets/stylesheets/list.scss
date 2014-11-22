@@ -16,8 +16,12 @@ body {
   font-weight: normal;
   font-size: 60px;
   text-align: center;
-  position: relative;
   color: green;
+  span:nth-child(2n+2) { color: red; }
+}
+
+.title-wrapper { 
+  position: relative;
   max-width: 1000px;
   margin: 15px auto;
 }

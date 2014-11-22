@@ -11,4 +11,5 @@
 // about supported directives.
 //
 //= require jquery
+//= require jquery.lettering
 //= require_tree .

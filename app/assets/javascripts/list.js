@@ -17,4 +17,6 @@ $(function() {
     editContainer.toggleClass('active')
     e.preventDefault()
   })
+  
+  $(".list-title").lettering();
 })
