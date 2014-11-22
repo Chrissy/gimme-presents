@@ -16,7 +16,11 @@ class ListsController < ApplicationController
   
   def create
     list = List.create(list_params)
-    redirect_to action: "show", id: list.list_id
+    user = User.new
+    user.save!
+    list.update_attribute(:user, user.id)
+    session[:user_id] = user.id
+    redirect_to action: "show", id: list.id
   end
   
   private

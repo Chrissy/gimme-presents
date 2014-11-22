@@ -1,5 +1,4 @@
 <%= @list.name %>
-
 <%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action %>
 
 <% @list.gifts.each do |gift| %>
@@ -7,7 +6,9 @@
     <%= image_tag gift.image %>
     <%= link_to gift.name, gift.url %>
     <%= gift.price %>
-    <%= link_to "delete", controller: "gifts", action: "delete", id: gift.id %>
-    <%= link_to "edit", gift.edit_link %>
+    <% if @list.user = session[:user_id] %>
+      <%= link_to "delete", controller: "gifts", action: "delete", id: gift.id %>
+      <%= link_to "edit", gift.edit_link %>
+    <% end %>
   </div>
 <% end %>
