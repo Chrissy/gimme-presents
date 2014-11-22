@@ -18,5 +18,5 @@ $(function() {
     e.preventDefault()
   })
   
-  $(".list-title").lettering();
+  $(".modified-title").lettering();
 })

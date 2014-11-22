@@ -20,17 +20,36 @@ body {
   span:nth-child(2n+2) { color: red; }
 }
 
+.edit-link {
+  text-indent: -9999px;
+  width: 13px;
+  height: 14px;
+  display: inline-block;
+  position: relative;
+  margin-left: -10px;
+  top: 3px;
+  opacity: 0.6;
+  background-image: image-url('edit.png');
+  &:hover { opacity: 1; }
+}
+
+.toggle-edit-controls {
+  left: 7px;
+  top: 1px;
+}
+
+.price {
+  display: inline-block;
+  margin-top: 10px;
+}
+
 .title-wrapper { 
   position: relative;
   max-width: 1000px;
   margin: 15px auto;
 }
 
-.edit-list-title {
-  font-size: 12px;
-  display: inline-block;
-  width: 0;
-}
+.edit-list-title { display: inline-block; }
 
 .gift .controls {
   position: relative;
@@ -40,7 +59,8 @@ body {
 .gift {
   text-align: center;
   margin-bottom: 200px;
-  font-family: "venus-dioxide";
+  //font-family: "venus-dioxide";
+  font-family: monospace;
   font-weight: normal;
   &, a { color: green; }
   &:first-child { margin-top: 100px; }
