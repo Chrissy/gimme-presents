@@ -8,10 +8,12 @@
     <%= link_to gift.name, gift.url %>
     <%= gift.price %>
     <% if @list.user = session[:user_id] %>
-      <%= link_to "delete", controller: "gifts", action: "delete", id: gift.id %>
-      <%= link_to "edit", gift.edit_link %>
-      <%= link_to "[^]", controller: "gifts", action: "move_down", id: gift.id %>
-      <%= link_to "[v]", controller: "gifts", action: "move_up", id: gift.id %>
+      <div class="controls">
+        <%= link_to "edit", "#", :class => "toggle-edit-controls", :"data-id" => gift.id %>
+        <div class="edit-gift-container hidden" data-id=gift.id>
+          <%= render 'gifts/form', :gift => gift, :list => @list, :action => "update" %>
+        </div>
+      </div>
     <% end %>
   </div>
 <% end %>

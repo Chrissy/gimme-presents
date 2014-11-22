@@ -1,0 +1,16 @@
+.gift .controls {
+  position: relative;
+  display: inline-block;
+}
+
+.edit-gift-container {
+  width: 270px;
+  padding: 20px 0px 20px 20px;
+  border: 1px solid #ccc;
+  position: absolute;
+  bottom: 0;
+  left: 35px;
+  input[type="text"] { margin-bottom: 10px; }
+  &.hidden { display: none; }
+  &.active { display: block; }
+}
