@@ -6,7 +6,7 @@
     <div class="gift">
       <%= image_tag gift.image %></br>
       <%= link_to gift.name, gift.url %>
-      <%= gift.price %>
+      <%= number_to_currency(gift.price) %>
       <% if @list.user = session[:user_id] %>
         <div class="controls">
           <%= link_to "edit", "#", :class => "toggle-edit-controls", :"data-id" => gift.id %>
