@@ -1,5 +1,30 @@
+@mixin font-face($family, $filename, $font-weight: normal, $font-style: normal) {
+  @font-face { 
+    font-family: "#{$family}";
+    src: url("/webfonts/#{$filename}.eot?#iefix") format("embedded-opentype"), url("/webfonts/#{$filename}.woff") format("woff");
+  }  
+}
+@include font-face("typhoid-mary", "typhoid-mary");
+@include font-face("venus-dioxide", "venus-dioxide");
+
 body {
   font-family: monospace;
+}
+
+.list-title {
+  font-family: "typhoid-mary", monospace;
+  font-weight: normal;
+  font-size: 60px;
+  text-align: center;
+  position: relative;
+  color: green;
+  margin-top: 15px;
+}
+
+.edit-list-title {
+  font-size: 12px;
+  display: inline-block;
+  width: 0;
 }
 
 .gift .controls {
@@ -10,6 +35,9 @@ body {
 .gift {
   text-align: center;
   margin-bottom: 200px;
+  font-family: "venus-dioxide";
+  font-weight: normal;
+  &, a { color: green; }
   &:first-child { margin-top: 100px; }
 }
 
@@ -25,6 +53,7 @@ body {
   width: 270px;
   padding: 20px 0px 20px 20px;
   border: 1px solid #ccc;
+  background: rgba(255,255,255,0.8);
   .add-message { display: none; }
   input[type="text"] { margin-bottom: 10px; }
 }
@@ -32,7 +61,7 @@ body {
 .new_gift {
   position: absolute;
   right: 10px;
-  top: 10px;
+  top: 20%;
   .add-message {
     display: block;
     margin-top: 0;
