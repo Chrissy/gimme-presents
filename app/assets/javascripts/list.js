@@ -19,4 +19,8 @@ $(function() {
   })
   
   $(".modified-title").lettering();
+  $("a.fake-submit").click(function(e){
+    $(this).siblings("input[type=submit]").click()
+    e.preventDefault()
+  })
 })

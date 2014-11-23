@@ -7,9 +7,9 @@
 @include font-face("typhoid-mary", "typhoid-mary");
 @include font-face("venus-dioxide", "venus-dioxide");
 
-body {
-  font-family: monospace;
-}
+body { font-family: monospace; }
+.hidden { display: none; }
+a { color: green; }
 
 .list-title {
   font-family: "typhoid-mary", monospace;
@@ -54,6 +54,8 @@ body {
 .gift .controls {
   position: relative;
   display: inline-block;
+  font-family: monospace;
+  text-align: left;
 }
 
 .gift {
@@ -61,7 +63,7 @@ body {
   margin-bottom: 200px;
   font-family: "venus-dioxide";
   font-weight: normal;
-  &, a { color: green; }
+  color: green;
   img { 
     margin-bottom: 10px; 
     max-width: 1000px;

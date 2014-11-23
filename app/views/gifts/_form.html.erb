@@ -5,11 +5,12 @@
     <%= f.text_field :url, :placeholder => "A link to your sweet present" %>
     <%= f.text_field :image, :placeholder => "A link to a picture of the present" %>
     <%= f.text_field :price, :placeholder => "How much it cost?" %>
-    <%= f.submit("#{action} my sweet gift!") %>
+    <%= f.submit "#{action} my gift!", :class => 'hidden' %>
+    <%= link_to "#{action} my gift!", "#", :class => 'fake-submit' %>
     <% if action == "update" %>
       <%= link_to "delete", controller: "gifts", action: "delete", id: gift.id %>
-      <%= link_to "[^]", controller: "gifts", action: "move_down", id: gift.id %>
-      <%= link_to "[v]", controller: "gifts", action: "move_up", id: gift.id %>
+      <%= link_to "[+]", controller: "gifts", action: "move_down", id: gift.id %>
+      <%= link_to "[-]", controller: "gifts", action: "move_up", id: gift.id %>
     <% end %>
   </div>
 <% end %>
