@@ -20,6 +20,13 @@ a { color: green; }
   span:nth-child(2n+2) { color: red; }
 }
 
+.sub-title {
+  text-align: center;
+  font-size: 22px;
+  font-family: "venus-dioxide";
+  font-weight: normal;
+}
+
 .edit-link {
   text-indent: -9999px;
   width: 13px;
@@ -97,3 +104,22 @@ a { color: green; }
     margin-top: 0;
   }
 }
+
+.new_list, .edit_list {
+  width: 500px;
+  margin: 0 auto;
+  text-align: center;
+  border: 1px solid #ccc;
+  padding: 20px 0;
+  margin-top: 60px;
+  background: whitesmoke;
+  input[type="text"] {
+    width: 80%;
+    font-size: 18px;
+    font-family: monospace;
+    text-align: center;
+    margin-bottom: 10px;
+  }
+}
+
+.create-list-page .list-title { margin-bottom: 0; }

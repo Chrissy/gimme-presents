@@ -1,6 +1,7 @@
 <%= form_for list, url: {action: action, id: list.id}, html: {method: "post"} do |f| %>
   <div class="form_block primary">
-    <%= f.text_field :name, :placeholder => "Name your freaking list" %>
-    <%= f.submit("#{action} my freaking list!") %>
+    <%= f.text_field :name, :placeholder => "Name your stupid list" %>
+    <%= f.submit "#{action} my freaking list!", :class => "hidden" %><br/>
+    <%= link_to "#{action} my freakin’ list!", "#", :class => 'fake-submit' %>
   </div>
 <% end %>
