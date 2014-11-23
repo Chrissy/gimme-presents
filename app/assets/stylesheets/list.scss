@@ -34,8 +34,8 @@ body {
 }
 
 .toggle-edit-controls {
-  left: 7px;
-  top: 1px;
+  left: 12px;
+  top: 4px;
 }
 
 .price {
@@ -59,10 +59,13 @@ body {
 .gift {
   text-align: center;
   margin-bottom: 200px;
-  //font-family: "venus-dioxide";
-  font-family: monospace;
+  font-family: "venus-dioxide";
   font-weight: normal;
   &, a { color: green; }
+  img { 
+    margin-bottom: 10px; 
+    max-width: 1000px;
+  }
   &:first-child { margin-top: 100px; }
 }
 
@@ -84,9 +87,9 @@ body {
 }
 
 .new_gift {
-  position: absolute;
-  right: 10px;
-  top: 30%;
+  position: fixed;
+  left: 10px;
+  bottom: 10px;
   .add-message {
     display: block;
     margin-top: 0;
