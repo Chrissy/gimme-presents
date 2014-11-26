@@ -1,17 +1,19 @@
+<% session_id = session[:user_id] %>
+
 <div class="title-wrapper">
   <h1 class="list-title">
     <span class="modified-title"><%= @list.name %></span>
-    <%= link_to "", @list.edit_link, :class => "edit-list-title edit-link" if @list.user = session[:user_id] %>
+    <%= link_to "", @list.edit_link, :class => "edit-list-title edit-link" if @list.user == session_id %>
   </h1>
 </div>
-<%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action if @list.user = session[:user_id] %>
+<%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action if @list.user == session_id %>
 <div class="gifts">
   <% @list.gifts.each do |gift| %>
     <div class="gift">
       <%= image_tag gift.image %></br>
       <%= link_to gift.name, gift.url %><br/>
       <span class="price"><%= number_to_currency(gift.price) %></span>
-      <% if @list.user = session[:user_id] %>
+      <% if @list.user = session_id %>
         <div class="controls">
           <%= link_to "edit", "#", :class => "toggle-edit-controls edit-link", :"data-id" => gift.id %>
           <div class="edit-gift-container hidden" data-id=gift.id>
