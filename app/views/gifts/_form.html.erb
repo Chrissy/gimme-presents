@@ -1,10 +1,10 @@
 <%= form_for gift, url: {controller: "gifts", action: action, list_id: list.id, id: gift.id}, html: {method: "post"} do |f| %>
   <h3 class="add-message">Add a sweet present!</h1>
   <div class="form_block primary">
-    <%= f.text_field :name, :placeholder => "Sweet Present Name" %>
-    <%= f.text_field :url, :placeholder => "A link to your sweet present" %>
-    <%= f.text_field :image, :placeholder => "A link to a picture of the present" %>
-    <%= f.text_field :price, :placeholder => "How much it cost?" %>
+    <%= f.text_field :name, :placeholder => "Name" %>
+    <%= f.text_field :url, :placeholder => "URL" %>
+    <%= f.text_field :image, :placeholder => "Link to a photo" %>
+    <%= f.text_field :price, :placeholder => "Price" %>
     <%= f.submit "#{action} my gift!", :class => 'hidden' %>
     <%= link_to "#{action} my gift!", "#", :class => 'fake-submit' %>
     <% if action == "update" %>
