@@ -1,6 +1,4 @@
-<% can_edit = session[:user_id] %>
-<div style="display:none;"><%= session[:user_id] %></div>
-<div style="display:none;"><%= @list.id %></div>
+<% can_edit = (session[:user_id] == @list.id) %>
 <div class="title-wrapper">
   <h1 class="list-title">
     <span class="modified-title"><%= @list.name %></span>
