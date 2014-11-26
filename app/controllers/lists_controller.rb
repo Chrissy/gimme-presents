@@ -23,7 +23,7 @@ class ListsController < ApplicationController
   
   def create
     list = List.create(list_params)
-    user = User.new
+    user = User.find_or_create_by_id(session[:user_id])
     user.save!
     list.update_attribute(:user, user.id)
     session[:user_id] = user.id
