@@ -52,7 +52,7 @@ a { color: green; }
 
 .title-wrapper { 
   position: relative;
-  max-width: 1000px;
+  max-width: 800px;
   margin: 15px auto;
 }
 
@@ -71,9 +71,11 @@ a { color: green; }
   font-family: "venus-dioxide";
   font-weight: normal;
   color: green;
+  padding: 10px;
+  box-sizing: border-box;
   img { 
     margin-bottom: 10px; 
-    max-width: 1000px;
+    max-width: 800px;
   }
   &:first-child { margin-top: 100px; }
 }
@@ -135,3 +137,8 @@ a { color: green; }
 }
 
 .create-list-page .list-title { margin-bottom: 0; }
+
+@media (max-width: 800px) {
+  .gift img { max-width: 100%; }
+  .title-wrapper { max-width: 100%; }
+}
