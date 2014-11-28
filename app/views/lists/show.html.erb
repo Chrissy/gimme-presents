@@ -6,6 +6,7 @@
   </h1>
 </div>
 <%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action if can_edit %>
+<%= link_to "Start a new sweet list!", "/" , :class => "new-list-link" %>
 <div class="gifts">
   <% @list.gifts.each do |gift| %>
     <div class="gift">

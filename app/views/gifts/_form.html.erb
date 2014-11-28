@@ -5,6 +5,7 @@
     <%= f.text_field :url, :placeholder => "URL" %>
     <%= f.text_field :image, :placeholder => "Link to a photo" %>
     <%= f.text_field :price, :placeholder => "Price" %>
+    </br>
     <%= f.submit "#{action} my gift!", :class => 'hidden' %>
     <%= link_to "#{action} my gift!", "#", :class => 'fake-submit' %>
     <% if action == "update" %>

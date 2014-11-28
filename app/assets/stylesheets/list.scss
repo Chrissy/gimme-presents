@@ -98,7 +98,7 @@ a { color: green; }
 .new_gift {
   position: fixed;
   left: 10px;
-  bottom: 10px;
+  bottom: 40px;
   .add-message {
     display: block;
     margin-top: 0;
@@ -120,6 +120,18 @@ a { color: green; }
     text-align: center;
     margin-bottom: 10px;
   }
+}
+
+.new-list-link {
+  display: block;
+  background: green;
+  color: white;
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  width: 292px;
+  text-align: center;
+  padding: 6px 0 10px 0;
 }
 
 .create-list-page .list-title { margin-bottom: 0; }
