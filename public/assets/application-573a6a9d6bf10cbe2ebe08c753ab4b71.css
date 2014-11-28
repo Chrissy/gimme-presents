@@ -1,0 +1,206 @@
+/*
+ * This is a manifest file that'll be compiled into application.css, which will include all the files
+ * listed below.
+ *
+ * Any CSS and SCSS file within this directory, lib/assets/stylesheets, vendor/assets/stylesheets,
+ * or vendor/assets/stylesheets of plugins, if any, can be referenced here using a relative path.
+ *
+ * You're free to add application-wide styles to this file and they'll appear at the top of the
+ * compiled file, but it's generally better to create a new file per style scope.
+ *
+
+
+ */
+
+@font-face {
+  font-family: "typhoid-mary";
+  src: url("/webfonts/typhoid-mary.eot?#iefix") format("embedded-opentype"), url("/webfonts/typhoid-mary.woff") format("woff");
+}
+
+@font-face {
+  font-family: "venus-dioxide";
+  src: url("/webfonts/venus-dioxide.eot?#iefix") format("embedded-opentype"), url("/webfonts/venus-dioxide.woff") format("woff");
+}
+
+/* line 10, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+body {
+  font-family: monospace;
+}
+
+/* line 11, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.hidden {
+  display: none;
+}
+
+/* line 12, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+a {
+  color: green;
+}
+
+/* line 14, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.list-title {
+  font-family: "typhoid-mary", monospace;
+  font-weight: normal;
+  font-size: 60px;
+  text-align: center;
+  color: green;
+}
+/* line 20, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.list-title span:nth-child(2n+2) {
+  color: red;
+}
+
+/* line 23, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.sub-title {
+  text-align: center;
+  font-size: 22px;
+  font-family: "venus-dioxide";
+  font-weight: normal;
+}
+
+/* line 30, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.edit-link {
+  text-indent: -9999px;
+  width: 13px;
+  height: 14px;
+  display: inline-block;
+  position: relative;
+  margin-left: -10px;
+  top: 3px;
+  opacity: 0.6;
+  background-image: url(/assets/edit.png);
+}
+/* line 40, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.edit-link:hover {
+  opacity: 1;
+}
+
+/* line 43, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.toggle-edit-controls {
+  left: 12px;
+  top: 4px;
+}
+
+/* line 48, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.price {
+  display: inline-block;
+  margin-top: 10px;
+}
+
+/* line 53, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.title-wrapper {
+  position: relative;
+  max-width: 1000px;
+  margin: 15px auto;
+}
+
+/* line 59, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.edit-list-title {
+  display: inline-block;
+}
+
+/* line 61, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.gift .controls {
+  position: relative;
+  display: inline-block;
+  font-family: monospace;
+  text-align: left;
+}
+
+/* line 68, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.gift {
+  text-align: center;
+  margin-bottom: 200px;
+  font-family: "venus-dioxide";
+  font-weight: normal;
+  color: green;
+}
+/* line 74, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.gift img {
+  margin-bottom: 10px;
+  max-width: 1000px;
+}
+/* line 78, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.gift:first-child {
+  margin-top: 100px;
+}
+
+/* line 81, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.edit-gift-container {
+  position: absolute;
+  bottom: 0;
+  left: 35px;
+}
+/* line 85, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.edit-gift-container.hidden {
+  display: none;
+}
+/* line 86, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.edit-gift-container.active {
+  display: block;
+}
+
+/* line 89, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_gift, .edit_gift {
+  width: 270px;
+  padding: 20px 0px 20px 20px;
+  border: 1px solid #ccc;
+  background: rgba(255, 255, 255, 0.8);
+}
+/* line 94, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_gift .add-message, .edit_gift .add-message {
+  display: none;
+}
+/* line 95, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_gift input[type="text"], .edit_gift input[type="text"] {
+  margin-bottom: 10px;
+}
+
+/* line 98, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_gift {
+  position: fixed;
+  left: 10px;
+  bottom: 40px;
+}
+/* line 102, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_gift .add-message {
+  display: block;
+  margin-top: 0;
+}
+
+/* line 108, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_list, .edit_list {
+  width: 500px;
+  margin: 0 auto;
+  text-align: center;
+  border: 1px solid #ccc;
+  padding: 20px 0;
+  margin-top: 60px;
+  background: whitesmoke;
+}
+/* line 116, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new_list input[type="text"], .edit_list input[type="text"] {
+  width: 80%;
+  font-size: 18px;
+  font-family: monospace;
+  text-align: center;
+  margin-bottom: 10px;
+}
+
+/* line 125, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.new-list-link {
+  display: block;
+  background: green;
+  color: white;
+  position: fixed;
+  bottom: 10px;
+  left: 10px;
+  width: 292px;
+  text-align: center;
+  padding: 6px 0 10px 0;
+}
+
+/* line 137, /Users/chrissy/gimme_presents/app/assets/stylesheets/list.scss */
+.create-list-page .list-title {
+  margin-bottom: 0;
+}
