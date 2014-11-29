@@ -14,7 +14,7 @@ class GiftsController < ApplicationController
   
   def delete
     gift = Gift.find(params[:id]).delete()
-    redirect_to gift.url 
+    redirect_to gift.list.url 
   end
   
   def edit
