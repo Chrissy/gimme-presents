@@ -1,4 +1,4 @@
-<% can_edit = (session[:user_id] == @list.user) %>
+<% can_edit = (cookies[:user_id].to_i == @list.user) %>
 <div class="title-wrapper">
   <h1 class="list-title">
     <span class="modified-title"><%= @list.name %></span>

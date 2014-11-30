@@ -7,7 +7,7 @@
   <%= csrf_meta_tags %>
   <meta name="viewport" content="width=device-width, initial-scale=1;">
 </head>
-<body>
+<body data-user-id="<%= cookies[:user_id] %>" data-editable="<%= @list.user %>">
 
 <%= yield %>
 
