@@ -3,3 +3,5 @@
   <h2 class="sub-title">Make a Christmas list for your lame family by typing in the thing below.</h2>
   <%= render 'form', :list => @list, :action => @action %>
 </div>
+
+<%= link_to "Sign in with Google", user_omniauth_authorize_path(:google_oauth2) %>
