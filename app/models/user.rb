@@ -1,19 +1,27 @@
 class User < ActiveRecord::Base
-  serialize :lists, Array
-
   devise :omniauthable, :omniauth_providers => [:google_oauth2]
 
-  def self.from_omniauth(access_token)
-    data = access_token.info
-    user = User.where(:email => data["email"]).first
+  def authenticated?
+    email.present? && password.present?
+  end
 
-    unless user
-        user = User.create(name: data["name"],
-           email: data["email"],
-           image: data["image"],
-           password: Devise.friendly_token[0,20]
-        )
-    end
-    user
+  def add_omniauth_data(access_token)
+
+    return self if authenticated?
+
+    data = access_token.info
+
+    update_attributes(name: data["name"],
+      email: data["email"],
+      image: data["image"],
+      password: Devise.friendly_token[0,20]
+    )
+
+    self
+  end
+
+  def self.find_with_omniauth(access_token)
+    data = access_token.info
+    User.where(:email => data["email"]).first
   end
 end
