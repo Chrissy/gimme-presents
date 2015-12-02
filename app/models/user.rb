@@ -5,11 +5,9 @@ class User < ActiveRecord::Base
     email.present? && password.present?
   end
 
-  def add_omniauth_data(access_token)
+  def add_omniauth_data(data)
 
     return self if authenticated?
-
-    data = access_token.info
 
     update_attributes(name: data["name"],
       email: data["email"],
@@ -20,8 +18,29 @@ class User < ActiveRecord::Base
     self
   end
 
-  def self.find_with_omniauth(access_token)
-    data = access_token.info
-    User.where(:email => data["email"]).first
+  def self.merge_users(user_1, user_2)
+    List.where(:user => user_1.id).each do |list|
+      list.update_attribute(:user, user_2.id)
+    end
+    user_1.delete
+    user_2
   end
+
+  def self.find_or_merge_with_omniauth(access_token, session_user)
+    data = access_token.info
+    lookup_attempt = User.where(:email => data["email"]).first
+
+    if session_user == lookup_attempt
+      session_user
+    elsif lookup_attempt && session_user
+      merge_users(session_user, lookup_attempt)
+    elsif lookup_attempt
+      lookup_attempt
+    elsif session_user
+      session_user.add_omniauth_data(data)
+    else
+      nil
+    end
+  end
+
 end
