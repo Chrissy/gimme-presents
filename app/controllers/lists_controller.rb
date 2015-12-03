@@ -1,39 +1,34 @@
 class ListsController < ApplicationController
   def show
-    #temporary to move to permanent cookies
-    if session[:user_id].present? && cookies[:user_id].blank?
-      cookies.permanent[:user_id] = session[:user_id]
-    end
     @list = List.find(params[:id])
     @gift = Gift.new
     @action = "create"
   end
-  
+
   def new
     @list = List.new
     @action = "create"
   end
-  
+
   def update
     list = List.find(params[:id])
     list.update_attributes(list_params)
     redirect_to list.url
   end
-  
+
   def edit
     @list = List.find(params[:id])
     @action = "update"
   end
-  
+
   def create
     list = List.create(list_params)
-    user = User.find_or_create_by_id(session[:user_id])
-    user.save!
-    list.update_attribute(:user, user.id)
-    cookies.permanent[:user_id] = user.id
-    redirect_to action: "show", id: list.id
+    @user = current_user || User.create
+    list.update_attribute(:user, @user.id)
+    session[:redirect_to_list] = list.url
+    sign_in_and_redirect @user
   end
-  
+
   private
 
   def list_params

@@ -8,7 +8,9 @@ GimmePresents::Application.routes.draw do
   get '/edit/:id' => 'lists#edit'
   post 'create' => 'lists#create'
   post 'update' => 'lists#update'
-  
+
+  devise_for :users, :controllers => { :omniauth_callbacks => "users/omniauth_callbacks" }
+
   post 'gifts/create' => 'gifts#create'
   post 'gifts/update' => 'gifts#update'
   get 'gifts/edit/:id' => 'gifts#edit'
