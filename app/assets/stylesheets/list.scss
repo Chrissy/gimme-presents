@@ -1,8 +1,8 @@
 @mixin font-face($family, $filename, $font-weight: normal, $font-style: normal) {
-  @font-face { 
+  @font-face {
     font-family: "#{$family}";
     src: url("/webfonts/#{$filename}.eot?#iefix") format("embedded-opentype"), url("/webfonts/#{$filename}.woff") format("woff");
-  }  
+  }
 }
 @include font-face("typhoid-mary", "typhoid-mary");
 @include font-face("venus-dioxide", "venus-dioxide");
@@ -50,7 +50,7 @@ a { color: green; }
   margin-top: 10px;
 }
 
-.title-wrapper { 
+.title-wrapper {
   position: relative;
   max-width: 800px;
   margin: 15px auto;
@@ -73,8 +73,8 @@ a { color: green; }
   color: green;
   padding: 10px;
   box-sizing: border-box;
-  img { 
-    margin-bottom: 10px; 
+  img {
+    margin-bottom: 10px;
     max-width: 800px;
   }
   &:first-child { margin-top: 100px; }
@@ -89,8 +89,9 @@ a { color: green; }
 }
 
 .new_gift, .edit_gift {
-  width: 270px;
-  padding: 20px 0px 20px 20px;
+  width: 320px;
+  box-sizing: border-box;
+  padding: 20px 25px 20px 20px;
   border: 1px solid #ccc;
   background: rgba(255,255,255,0.8);
   .add-message { display: none; }
@@ -131,7 +132,7 @@ a { color: green; }
   position: fixed;
   bottom: 10px;
   left: 10px;
-  width: 292px;
+  width: 320px;
   text-align: center;
   padding: 6px 0 10px 0;
 }
