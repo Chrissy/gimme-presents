@@ -5,7 +5,7 @@
   </h1>
 </div>
 <%= render 'gifts/form', :list => @list, :gift => @gift, :action => @action if can_edit(@list) %>
-<%= link_to button_text_for_user_auth, "/users/auth/google_oauth2?list=#{@list.id}", :class => 'new-list-link' unless user_authenticated? %>
+<%= link_to button_text_for_user_auth(@list), "/users/auth/google_oauth2?list=#{@list.id}", :class => 'new-list-link' unless user_authenticated? %>
 
 <div class="gifts">
   <% @list.gifts.each do |gift| %>
@@ -13,7 +13,7 @@
       <%= image_tag gift.image %></br>
       <%= link_to gift.name, gift.url %><br/>
       <span class="price"><%= number_to_currency(gift.price) %></span>
-      <% if can_edit %>
+      <% if can_edit(@list) %>
         <div class="controls">
           <%= link_to "edit", "#", :class => "toggle-edit-controls edit-link", :"data-id" => gift.id %>
           <div class="edit-gift-container hidden" data-id=gift.id>
