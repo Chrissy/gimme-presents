@@ -3,9 +3,11 @@ class ListsController < ApplicationController
   skip_before_action :redirect_if_cannot_edit, only: [:show, :new, :create]
 
   def show
-    @list = List.find(params[:id])
+    @list = List.friendly.find(params[:id])
     @gift = Gift.new
     @action = "create"
+
+    redirect_to action: :show, id: @list.slug, status: 301 unless @list.slug == params[:id]
   end
 
   def new
