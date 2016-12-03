@@ -1,7 +1,7 @@
 <div class="create-list-page">
-  <h1 class="list-title"><span class="modified-title">Gimme some freakin’ presents!</span><h1>
+  <h1 class="list-title"><span class="modified-title">Gimme some freakin’ presents!</span></h1>
 
-  <%= link_to "Login if you feel like it", "/users/auth/google_oauth2?list=#{@list.id}", :class => 'new-list-link new-list-link--inline' unless user_authenticated? %>
+  <%= link_to "Login if you feel like it", "/users/auth/google_oauth2?list=#{@list.id}", :class => 'new-list-link' unless user_authenticated? %>
 
   <h2 class="sub-title">Make a gift list for your lame family by typing in the thing below.</h2>
   <%= render 'form', :list => @list, :action => @action %>
