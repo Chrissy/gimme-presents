@@ -26,6 +26,10 @@ class User < ActiveRecord::Base
     user_2
   end
 
+  def lists
+    List.where(:user => id)
+  end
+
   def self.find_or_merge_with_omniauth(access_token, session_user)
     data = access_token.info
     lookup_attempt = User.where(:email => data["email"]).first

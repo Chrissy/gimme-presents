@@ -1,6 +1,15 @@
 <div class="create-list-page">
   <h1 class="list-title"><span class="modified-title">Gimme some freakin’ presents!</span><h1>
-  <h2 class="sub-title">Make a Christmas list for your lame family by typing in the thing below.</h2>
-  <%= render 'form', :list => @list, :action => @action %>
+
   <%= link_to "Login if you feel like it", "/users/auth/google_oauth2?list=#{@list.id}", :class => 'new-list-link new-list-link--inline' unless user_authenticated? %>
+
+  <h2 class="sub-title">Make a gift list for your lame family by typing in the thing below.</h2>
+  <%= render 'form', :list => @list, :action => @action %>
+
+  <% if user_authenticated? && current_user.lists %>
+    <h2 class="sub-title" style="margin-top: 4em;">Also, here are some lame lists you've made before:</h2>
+    <% current_user.lists.each_with_index do |list, index| %>
+      <div class="list-element"><%= link_to "#{index + 1}. #{list.name} (#{List.last.created_at.strftime('%Y')})", list.url %></div>
+    <% end %>
+  <% end %>
 </div>

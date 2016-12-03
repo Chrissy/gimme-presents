@@ -148,6 +148,17 @@ a { color: green; }
   margin: 1em auto;
 }
 
+.label {
+  font-size: .8em;
+  margin-bottom: 1em;
+}
+
+.list-element {
+  margin-top: 1em;
+  text-align: center;
+  font-size: 1.2em;
+}
+
 .create-list-page .list-title { margin-bottom: 0; }
 
 @media (max-width: 800px) {
