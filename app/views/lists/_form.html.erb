@@ -3,5 +3,6 @@
     <%= f.text_field :name, :placeholder => "Name your stupid list" %>
     <%= f.submit "#{action} my list!", :class => "hidden" %><br/>
     <%= link_to "#{action} my list!", "#", :class => 'fake-submit' %>
+    <%= link_to "delete", "/delete?id=#{list.id}", style: "color:red;", onclick: "var r = confirm('are you sure?!'); if (r == false) return false;" if action == 'update' %>
   </div>
 <% end %>
