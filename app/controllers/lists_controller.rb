@@ -1,4 +1,7 @@
 class ListsController < ApplicationController
+  before_action :redirect_if_cannot_edit
+  skip_before_action :redirect_if_cannot_edit, only: [:show, :new, :create]
+
   def show
     @list = List.find(params[:id])
     @gift = Gift.new
@@ -38,5 +41,12 @@ class ListsController < ApplicationController
 
   def list_params
     params.require(:list).permit(:name)
+  end
+
+  def redirect_if_cannot_edit
+    list = List.find_by_id(params[:id]) || false
+
+    return redirect_to root_path unless current_user
+    redirect_to root_path unless list && current_user.id == list.user
   end
 end
