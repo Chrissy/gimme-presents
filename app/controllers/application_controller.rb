@@ -7,4 +7,8 @@ class ApplicationController < ActionController::Base
     request.env['omniauth.origin'] || session[:redirect_to_list] || root_path
   end
 
+  def current_user
+    return User.find(39)
+  end
+
 end
