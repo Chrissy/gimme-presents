@@ -110,7 +110,9 @@ a { color: green; }
 }
 
 .new_list, .edit_list {
-  width: 500px;
+  max-width: 500px;
+  width: 90vw;
+  min-width: 100px;
   margin: 0 auto;
   text-align: center;
   border: 1px solid #ccc;
@@ -136,6 +138,14 @@ a { color: green; }
   width: 320px;
   text-align: center;
   padding: 6px 0 10px 0;
+}
+
+.new-list-link--inline {
+  position: static;
+  max-width: 500px;
+  width: 90vw;
+  min-width: 100px;
+  margin: 1em auto;
 }
 
 .create-list-page .list-title { margin-bottom: 0; }
