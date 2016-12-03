@@ -1,4 +1,6 @@
 class GiftsController < ApplicationController
+  before_action :redirect_if_cannot_edit
+
   def update
     gift = Gift.find(params[:id])
     gift.update_attributes(gift_params)
@@ -39,5 +41,13 @@ class GiftsController < ApplicationController
 
   def gift_params
     params.require(:gift).permit(:name, :url, :price, :image)
+  end
+
+  def redirect_if_cannot_edit
+    gift = Gift.find_by_id(params[:id]) if params[:id] || false
+    list = List.find_by_id(params[:list_id]) if params[:list_id] || false
+
+    return redirect_to root_path unless current_user
+    redirect_to root_path unless (list && list.user == current_user.id) || (gift && gift.list.user == current_user.id)
   end
 end

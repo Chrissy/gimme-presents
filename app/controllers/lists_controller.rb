@@ -44,10 +44,9 @@ class ListsController < ApplicationController
   end
 
   def redirect_if_cannot_edit
-    redirect_to root_path unless
-      current_user &&
-      params[:id] &&
-      List.find(params[:id]) &&
-      current_user.id == List.find(params[:id]).user
+    list = List.find_by_id(params[:id]) || false
+
+    return redirect_to root_path unless current_user
+    redirect_to root_path unless list && current_user.id == list.user
   end
 end
