@@ -16,7 +16,7 @@ ActiveRecord::Schema.define(version: 20161203230729) do
   # These are extensions that must be enabled in order to support this database
   enable_extension "plpgsql"
 
-  create_table "gifts", force: true do |t|
+  create_table "gifts", force: :cascade do |t|
     t.integer  "list_id"
     t.string   "name"
     t.string   "url"
@@ -28,7 +28,7 @@ ActiveRecord::Schema.define(version: 20161203230729) do
     t.integer  "position"
   end
 
-  create_table "lists", force: true do |t|
+  create_table "lists", force: :cascade do |t|
     t.string   "name"
     t.string   "url"
     t.datetime "created_at"
@@ -40,7 +40,7 @@ ActiveRecord::Schema.define(version: 20161203230729) do
 
   add_index "lists", ["slug"], name: "index_lists_on_slug", unique: true, using: :btree
 
-  create_table "users", force: true do |t|
+  create_table "users", force: :cascade do |t|
     t.string "lists"
     t.string "provider"
     t.string "uid"
