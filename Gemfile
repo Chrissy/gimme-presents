@@ -2,10 +2,10 @@ source 'https://rubygems.org'
 ruby "2.5.3"
 
 # Bundle edge Rails instead: gem 'rails', github: 'rails/rails'
-gem 'rails', '~> 4.2.1'
+gem 'rails'
 
 # Use sqlite3 as the database for Active Record
-gem 'pg', '0.18.4'
+gem 'pg'
 
 # Use SCSS for stylesheets
 gem 'sass-rails', '~> 4.0.0'
@@ -24,7 +24,7 @@ gem 'jquery-rails'
 gem 'acts_as_list'
 
 gem 'omniauth-google-oauth2'
-gem 'devise', '~> 3.0.0'
+gem 'devise'
 
 # Turbolinks makes following links in your web application faster. Read more: https://github.com/rails/turbolinks
 gem 'turbolinks'
@@ -32,7 +32,7 @@ gem 'friendly_id'
 gem "sentry-raven"
 
 # Build JSON APIs with ease. Read more: https://github.com/rails/jbuilder
-gem 'jbuilder', '~> 1.2'
+gem 'jbuilder'
 
 group :doc do
   # bundle exec rake doc:rails generates the API under doc/api.

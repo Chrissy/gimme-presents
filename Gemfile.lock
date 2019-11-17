@@ -176,13 +176,13 @@ DEPENDENCIES
   acts_as_list
   byebug
   coffee-rails (~> 4.0.0)
-  devise (~> 3.0.0)
+  devise
   friendly_id
-  jbuilder (~> 1.2)
+  jbuilder
   jquery-rails
   omniauth-google-oauth2
-  pg (= 0.18.4)
-  rails (~> 4.2.1)
+  pg
+  rails
   sass-rails (~> 4.0.0)
   sdoc
   sentry-raven
