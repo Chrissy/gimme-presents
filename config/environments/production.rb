@@ -77,4 +77,8 @@ GimmePresents::Application.configure do
 
   # Use default logging formatter so that PID and timestamp are not suppressed.
   config.log_formatter = ::Logger::Formatter.new
+
+  Raven.configure do |config|
+    config.dsn = 'https://6a7da2372c6f47adb05e35f85934faa1@sentry.io/1823641'
+  end
 end
