@@ -5,7 +5,7 @@ ruby "2.5.3"
 gem 'rails'
 
 # Use sqlite3 as the database for Active Record
-gem 'pg'
+gem 'pg', '0.18.4'
 
 # Use SCSS for stylesheets
 gem 'sass-rails', '~> 4.0.0'

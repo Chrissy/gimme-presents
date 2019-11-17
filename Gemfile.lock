@@ -181,7 +181,7 @@ DEPENDENCIES
   jbuilder
   jquery-rails
   omniauth-google-oauth2
-  pg
+  pg (= 0.18.4)
   rails
   sass-rails (~> 4.0.0)
   sdoc
