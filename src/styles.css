@@ -120,3 +120,31 @@ a { color: green; }
   .gift img { max-width: 100%; }
   .title-wrapper { max-width: 100%; }
 }
+
+/* New API feedback only; the original forms keep their existing styles. */
+.form-notice {
+  box-sizing: border-box;
+  max-width: 500px;
+  margin: 16px auto;
+  padding: 10px 12px;
+  border: 1px solid #e0bcbc;
+  border-left: 3px solid #a52222;
+  background: #fff5f5;
+  color: #8b1b1b;
+  font: 13px/1.45 monospace;
+  text-align: left;
+  overflow-wrap: anywhere;
+}
+.form-notice p { margin: 0; }
+.form-notice p + p { margin-top: 8px; }
+.form-notice button {
+  margin-top: 10px;
+  padding: 4px 8px;
+  border: 1px solid #bf9292;
+  background: white;
+  color: inherit;
+  font: inherit;
+  cursor: pointer;
+}
+.new_list .form-notice, .edit_list .form-notice { width: 80%; margin-bottom: 0; }
+.new_gift .form-notice, .edit_gift .form-notice { margin: 14px 0 0; }
