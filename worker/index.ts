@@ -2,7 +2,7 @@ import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { currentOwner, newIdentity, setSessionCookie } from './auth';
 import {
-  conflict, findList, LIST_WRITE_GUARD, listResponse, mutateList, ownedList, ownedLists, requireGift,
+  conflict, findList, LIST_WRITE_GUARD, listResponse, localLists, mutateList, ownedList, ownedLists, requireGift,
 } from './database';
 import { badRequest, giftIds, giftInput, id, jsonBody, name, revision } from './validation';
 
@@ -32,6 +32,13 @@ app.get('/api/health', async c => {
 app.get('/api/me', async c => {
   const ownerId = await currentOwner(c);
   return c.json({ lists: ownerId ? await ownedLists(c.env.DB, ownerId) : [] });
+});
+
+app.get('/api/local/lists', async c => {
+  if (c.env.ENVIRONMENT !== 'local') {
+    return c.json({ error: 'That API route could not be found.' }, 404);
+  }
+  return c.json({ lists: await localLists(c.env.DB) });
 });
 
 app.get('/api/lists/by-id/:id', async c => {

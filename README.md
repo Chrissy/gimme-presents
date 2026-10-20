@@ -14,6 +14,8 @@ npm run dev
 
 Open the address printed by Vite. Create a list, then add gifts with a name, product URL, image URL, and optional price. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
 
+The local-only `/local/all-lists` page is a plain index of every list, newest first, with creation dates and gift counts. Its API returns 404 in production. To inspect an imported database separately from your ordinary development data, run `GIMME_LOCAL_STATE_DIR=/path/to/rehearsal-state npm run dev`, using the same directory as Wrangler's `--persist-to` argument. See the [local restore report](docs/LOCAL_RESTORE.md) for the supplied August 2026 snapshot.
+
 Ownership uses a private HttpOnly browser cookie with a 180-day lifetime, renewed during use at most once per day. Keep that cookie: clearing browser data, letting it expire, or switching browsers loses edit access in this version. The public URL alone does not grant editing.
 
 ## Validate

@@ -1,5 +1,5 @@
 import { HTTPException } from 'hono/http-exception';
-import type { Gift, ListResponse, ListSummary } from '../shared/api';
+import type { Gift, ListResponse, ListSummary, LocalListSummary } from '../shared/api';
 import { currentOwner, type AppContext } from './auth';
 
 export interface ListRow {
@@ -110,4 +110,15 @@ export async function ownedLists(db: D1Database, ownerId: string): Promise<ListS
   const result = await db.prepare(`SELECT ${LIST_COLUMNS} FROM lists WHERE owner_id = ? ORDER BY updated_at DESC, id DESC`)
     .bind(ownerId).all<ListRow>();
   return result.results.map(listSummary);
+}
+
+export async function localLists(db: D1Database): Promise<LocalListSummary[]> {
+  const result = await db.prepare(`
+    SELECT lists.id, lists.name, lists.slug, lists.created_at AS createdAt, COUNT(gifts.id) AS giftCount
+    FROM lists
+    LEFT JOIN gifts ON gifts.list_id = lists.id
+    GROUP BY lists.id
+    ORDER BY lists.created_at DESC, lists.id DESC
+  `).all<LocalListSummary>();
+  return result.results;
 }

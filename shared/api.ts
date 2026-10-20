@@ -26,6 +26,18 @@ export interface MeResponse {
   lists: ListSummary[];
 }
 
+export interface LocalListSummary {
+  id: number;
+  name: string;
+  slug: string;
+  createdAt: string;
+  giftCount: number;
+}
+
+export interface LocalListsResponse {
+  lists: LocalListSummary[];
+}
+
 export interface GiftInput {
   name: string;
   url: string;

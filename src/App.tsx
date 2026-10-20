@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'rea
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import type { Gift, GiftInput, ListResponse } from '../shared/api';
 import { errorMessage, request, RequestError, write } from './api';
+import { AllListsPage } from './AllListsPage';
 
 const blankGift: GiftInput = { name: '', url: '', image: '', price: '' };
 
@@ -325,6 +326,7 @@ function RoutedList({ editTitle = false }: { editTitle?: boolean }) {
 export function App() {
   return <Routes>
     <Route path="/" element={<HomePage />} />
+    <Route path="/local/all-lists" element={<AllListsPage />} />
     <Route path="/edit/:id" element={<RoutedList editTitle />} />
     <Route path="/:slug" element={<RoutedList />} />
     <Route path="*" element={<main><p>That page could not be found.</p><Link to="/">Make a list of your own</Link></main>} />

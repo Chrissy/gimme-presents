@@ -109,9 +109,9 @@ export function compileLegacyExport(document) {
 
   for (const list of lists) {
     const label = `list ${list.id}`;
-    string(list.name, `${label}.name`);
+    string(list.name, `${label}.name`, true);
     string(list.slug, `${label}.slug`);
-    if (!/^[a-zA-Z0-9][a-zA-Z0-9_-]*$/.test(list.slug) || RESERVED_SLUGS.has(list.slug.toLowerCase())) {
+    if (!/^[a-zA-Z0-9_-]+$/.test(list.slug) || RESERVED_SLUGS.has(list.slug.toLowerCase())) {
       fail(`${label}.slug: not a supported public path, or conflicts with an application route. Plan a redirect before changing it.`);
     }
     if (slugs.has(list.slug)) fail(`${label}.slug: duplicate public slug; resolve the conflict before import.`);
@@ -141,7 +141,7 @@ export function compileLegacyExport(document) {
     const label = `gift ${gift.id}`;
     integer(gift.list_id, `${label}.list_id`);
     if (!listIds.has(gift.list_id)) fail(`${label}.list_id: orphan gift references missing list ${gift.list_id}; reconcile it explicitly before import.`);
-    string(gift.name, `${label}.name`);
+    string(gift.name, `${label}.name`, true);
     // Legacy acts_as_list positions are copied verbatim; descending display order remains intact.
     integer(gift.position, `${label}.position`, 0);
     timestamp(gift.created_at, `${label}.created_at`);

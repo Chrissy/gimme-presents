@@ -75,6 +75,32 @@ test('emits deterministic SQL even when input arrays have different ordering', (
   assert.deepEqual(compileLegacyExport(first), compileLegacyExport(second));
 });
 
+test('preserves blank legacy names and public slugs beginning with a hyphen or underscore', () => {
+  const source = fixture();
+  source.lists[0].name = '';
+  source.lists[0].slug = '-christmas-list';
+  source.lists[1].name = ' \t ';
+  source.lists[1].slug = '_wish-list';
+  source.gifts[0].name = '';
+  source.gifts[1].name = ' \n ';
+  const original = JSON.stringify(source);
+  const db = database();
+  try {
+    db.exec(compileLegacyExport(source).sql);
+    for (const list of source.lists) {
+      const restored = db.prepare('SELECT name, slug FROM lists WHERE id = ?').get(list.id);
+      assert.equal(restored.name, list.name);
+      assert.equal(restored.slug, list.slug);
+    }
+    for (const gift of source.gifts) {
+      assert.equal(db.prepare('SELECT name FROM gifts WHERE id = ?').get(gift.id).name, gift.name);
+    }
+    assert.equal(JSON.stringify(source), original, 'conversion must not fill or trim legacy names');
+  } finally {
+    db.close();
+  }
+});
+
 test('converts decimal strings exactly and rejects ambiguous or invalid prices', () => {
   for (const [value, expected] of [[null, null], ['0', 0], ['0.01', 1], ['0.29', 29], ['1.1', 110], ['19.99', 1999], ['99999999.99', 9_999_999_999]]) {
     assert.equal(priceToCents(value), expected);
@@ -112,7 +138,14 @@ test('refuses broken ownership, orphan gifts, duplicate IDs/slugs and malformed 
     [(data) => { data.users.push({ id: 7 }); }, /duplicate record ID 7/],
     [(data) => { data.lists[1].slug = data.lists[0].slug; }, /duplicate public slug/],
     [(data) => { data.lists[0].slug = 'api'; }, /list 9.slug/],
+    [(data) => { data.lists[0].slug = 'ASSETS'; }, /list 9.slug/],
+    [(data) => { data.lists[0].slug = ''; }, /list 9.slug/],
+    [(data) => { data.lists[0].slug = null; }, /list 9.slug/],
+    [(data) => { data.lists[0].slug = 'two words'; }, /list 9.slug/],
     [(data) => { data.lists[0].slug = '../private'; }, /list 9.slug/],
+    [(data) => { data.lists[0].slug = '_private/path'; }, /list 9.slug/],
+    [(data) => { data.lists[0].name = null; }, /list 9.name/],
+    [(data) => { data.lists[0].name = 'a\0b'; }, /NUL/],
     [(data) => { data.lists[0].id = Number.MAX_SAFE_INTEGER + 1; }, /safe integer/],
     [(data) => { data.lists[0].created_at = null; }, /list 9.created_at/],
     [(data) => { data.lists[0].created_at = '2026-02-30T00:00:00Z'; }, /invalid calendar timestamp/],

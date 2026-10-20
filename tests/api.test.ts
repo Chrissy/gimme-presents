@@ -1,6 +1,6 @@
 import { env, exports as worker } from 'cloudflare:workers';
 import { describe, expect, it } from 'vitest';
-import type { ListResponse, MeResponse } from '../shared/api';
+import type { ListResponse, LocalListsResponse, MeResponse } from '../shared/api';
 import app from '../worker';
 
 const ORIGIN = 'https://gimme.test';
@@ -38,6 +38,54 @@ async function readList(id: number, cookie?: string) {
   expect(response.status).toBe(200);
   return response.json<ListResponse>();
 }
+
+describe('local list index', () => {
+  it('includes every owner, zero-gift lists, and only index fields in stable newest-first order', async () => {
+    const first = await createList('Older list');
+    const second = await createList('Same day, lower ID');
+    const third = await createList('Same day, higher ID', first.cookie);
+    await addGift(first.data, first.cookie);
+    await addGift(third.data, first.cookie);
+    const older = '2020-12-01T10:00:00.000Z';
+    const newer = '2025-12-01T10:00:00.000Z';
+    await env.DB.batch([
+      env.DB.prepare('UPDATE lists SET created_at = ? WHERE id = ?').bind(older, first.data.list.id),
+      env.DB.prepare('UPDATE lists SET created_at = ? WHERE id IN (?, ?)')
+        .bind(newer, second.data.list.id, third.data.list.id),
+    ]);
+
+    const response = await app.fetch(new Request(`${ORIGIN}/api/local/lists`), { ...env, ENVIRONMENT: 'local' });
+    expect(response.status).toBe(200);
+    expect(response.headers.get('Cache-Control')).toBe('no-store');
+    expect(response.headers.has('Set-Cookie')).toBe(false);
+    const data = await response.json() as LocalListsResponse;
+    expect(data).toEqual({
+      lists: [
+        { id: third.data.list.id, name: third.data.list.name, slug: third.data.list.slug, createdAt: newer, giftCount: 1 },
+        { id: second.data.list.id, name: second.data.list.name, slug: second.data.list.slug, createdAt: newer, giftCount: 0 },
+        { id: first.data.list.id, name: first.data.list.name, slug: first.data.list.slug, createdAt: older, giftCount: 1 },
+      ],
+    });
+  });
+
+  it('returns an empty index without creating a session', async () => {
+    const response = await app.fetch(new Request(`${ORIGIN}/api/local/lists`), { ...env, ENVIRONMENT: 'local' });
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ lists: [] });
+    expect(response.headers.has('Set-Cookie')).toBe(false);
+    expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM owners').first('count')).toBe(0);
+  });
+
+  it('does not expose the index in production, even to a list owner', async () => {
+    const owner = await createList();
+    const response = await app.fetch(new Request(`${ORIGIN}/api/local/lists`, {
+      headers: { Cookie: owner.cookie },
+    }), { ...env, ENVIRONMENT: 'production' });
+    expect(response.status).toBe(404);
+    expect(await response.json()).toEqual({ error: 'That API route could not be found.' });
+    expect(response.headers.has('Set-Cookie')).toBe(false);
+  });
+});
 
 describe('anonymous ownership', () => {
   it('creates an owner only when a list is created, stores a hash, and reuses a persistent session', async () => {
