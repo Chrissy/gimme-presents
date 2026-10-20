@@ -1,0 +1,43 @@
+{
+  "name": "gimme-presents",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "build": "vite build",
+    "build:production": "CLOUDFLARE_ENV=production vite build",
+    "preview": "vite preview --host 127.0.0.1",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types --config wrangler.jsonc",
+    "test": "npm run test:api && npm run test:import",
+    "test:api": "vitest run",
+    "test:import": "node --test tests/import*.test.mjs",
+    "test:e2e": "playwright test",
+    "db:migrate:local": "wrangler d1 migrations apply DB --config wrangler.jsonc --local",
+    "deploy": "npm run build:production && wrangler deploy --env production"
+  },
+  "dependencies": {
+    "hono": "^4.13.13",
+    "react": "^19.3.1",
+    "react-dom": "^19.3.1",
+    "react-router-dom": "^7.18.4"
+  },
+  "devDependencies": {
+    "@cloudflare/vite-plugin": "^1.64.0",
+    "@cloudflare/vitest-plugin": "^1.4.5",
+    "@cloudflare/workers-types": "^5.20261019.1",
+    "@playwright/test": "^1.64.1",
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "@types/react-dom": "^19.3.0",
+    "@vitejs/plugin-react": "^6.1.2",
+    "typescript": "^7.0.2",
+    "vite": "^8.3.4",
+    "vitest": "^4.1.12",
+    "wrangler": "^4.151.2"
+  }
+}
