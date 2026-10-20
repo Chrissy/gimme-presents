@@ -2,6 +2,8 @@
 
 A small Christmas list builder: React and Vite in the browser, a Hono API on Cloudflare Workers, and SQLite data in Cloudflare D1. The original Rails CSS, native input appearance, spacing, fixed forms, edit popovers, link controls, and sarcastic copy are retained. This is a runtime port, not a UI redesign; the original mobile layout and its quirks are intentional. Google sign-in and its account-only list history are removed.
 
+Live on [gimme-presents.fivefourths.workers.dev](https://gimme-presents.fivefourths.workers.dev) since 2026-10-20. The reviewed August backup is imported: 135 lists and 848 attached gifts. Live smoke checks passed on workers.dev. The main domain is unchanged and remains deferred.
+
 ## Run locally
 
 Use Node.js 24 and npm. Local development uses simulated D1; a Cloudflare account is not needed for these commands.
@@ -30,11 +32,11 @@ npm run build
 
 ## Existing Rails data and deployment
 
-The offline tools in `scripts/` export a read-only PostgreSQL snapshot and generate D1 SQL. They preserve existing list/gift IDs, share slugs, owner associations, timestamps, prices, and gift ordering. They refuse inconsistent data and existing output files. Production configuration intentionally contains an unset D1 database ID.
+Production runs in the personal Cloudflare account using the repository's saved `pp-diaper` Wrangler profile. Its account and D1 IDs are pinned in `wrangler.jsonc`. To update the deployed app, confirm the personal account with `npx wrangler whoami`, then run `npm run deploy`. The database is already populated: do not repeat its initial import for an ordinary update.
 
-**Importing data preserves public lists, not legacy edit access.** Rails sessions and Google authentication are not imported. The deployment guide requires an explicit owner-access decision before changing the production domain.
+**Imported lists are public and view-only.** Rails sessions and Google authentication were not imported. New lists use anonymous browser ownership. Cookies created on workers.dev will not transfer automatically to a future custom domain.
 
-Follow [the migration and deployment guide](docs/DEPLOYMENT.md) for backup, rehearsal, account selection, provisioning, verification, and cutover. No production migration or deployment is implied by this source change.
+See [the deployment and recovery guide](docs/DEPLOYMENT.md) for the deployed version, remote readback, live verification status, backups, and archival recovery tools. No main-domain, Custom Domain, or DNS change is part of this release.
 
 ## Scope
 
