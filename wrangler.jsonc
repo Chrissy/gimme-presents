@@ -24,6 +24,10 @@
     "production": {
       "name": "gimme-presents",
       "account_id": "6fcfd050639f1bcffd6534443c89e0e5",
+      "routes": [
+        { "pattern": "gimmesomefreakingpresents.com", "custom_domain": true },
+        { "pattern": "www.gimmesomefreakingpresents.com", "custom_domain": true }
+      ],
       "vars": { "ENVIRONMENT": "production" },
       "d1_databases": [
         {

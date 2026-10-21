@@ -1,14 +1,14 @@
 # Deployment and recovery
 
-## Current workers.dev release
+## Current production release
 
-The app was deployed on **2026-10-20** to [gimme-presents.fivefourths.workers.dev](https://gimme-presents.fivefourths.workers.dev), using the reviewed August 15, 2026 backup. The old Rails site is offline; this release restores the supplied snapshot. A fresh Rails export or write freeze is not a prerequisite for this completed release.
+The app was first deployed on **2026-10-20** to [gimme-presents.fivefourths.workers.dev](https://gimme-presents.fivefourths.workers.dev), using the reviewed August 15, 2026 backup. The same Worker is now also attached to [gimmesomefreakingpresents.com](https://gimmesomefreakingpresents.com) and [www.gimmesomefreakingpresents.com](https://www.gimmesomefreakingpresents.com) as Custom Domains. The workers.dev address remains available. The domain deployment reused the existing D1 binding and data without a migration or reimport.
 
 | Item | Released state |
 | --- | --- |
 | Worker | `gimme-presents` |
-| Worker version | `783e5120-8e91-42c2-9f2f-ee876a1deb1a` |
-| Deployment readback | 100% of traffic on that version; author `fivefourths@gmail.com` |
+| Worker version | `36374ff3-02f6-417b-ba3c-87ec7dd40b98` |
+| Deployment status | Custom-domain deployment, main-domain browser/API smoke checks, and canonical redirects verified |
 | Cloudflare account | Personal account for `fivefourths@gmail.com` |
 | Account ID | `6fcfd050639f1bcffd6534443c89e0e5` |
 | Saved Wrangler profile | `pp-diaper`, activated for this repository |
@@ -16,9 +16,12 @@ The app was deployed on **2026-10-20** to [gimme-presents.fivefourths.workers.de
 | D1 UUID | `03721551-2659-4493-a792-b85360cae0c2` |
 | Applied schema | `0001_initial.sql` |
 | Remote import readback, before smoke tests | 91 owners, 135 lists, 848 gifts, 0 sessions; no foreign-key violations |
-| Remote readback after smoke tests | 135 lists, 848 gifts, 91 legacy owners; no foreign-key violations |
-| Live smoke verification | Passed on workers.dev; imported-list browser rendering, anonymous ownership, edits, and cleanup verified |
-| Main domain | Unchanged; connecting it is deferred until separately requested |
+| Remote readback after initial workers.dev smoke tests | 135 lists, 848 gifts, 91 legacy owners; no foreign-key violations |
+| Earlier live smoke verification | Passed on workers.dev; imported-list browser rendering, anonymous ownership, edits, and cleanup verified |
+| Custom Domains | `gimmesomefreakingpresents.com` and `www.gimmesomefreakingpresents.com` |
+| Main-domain readback after smoke cleanup | 135 lists, 848 gifts; no foreign-key violations |
+| Canonical redirects | HTTP apex, HTTP `www`, and HTTPS `www` return 301 directly to HTTPS apex, preserving paths and query strings |
+| workers.dev | Retained |
 
 The production account ID and database UUID are pinned in `wrangler.jsonc`; the default local D1 binding remains isolated. The existing database is populated. **Do not rerun the initial legacy import or create another production database for an ordinary update.**
 
@@ -34,7 +37,27 @@ npm run deploy
 
 Confirm the `whoami` result is the intended personal identity/account before running the remaining commands. `npm run deploy` builds with `CLOUDFLARE_ENV=production` and deploys with `--env production`. It updates the Worker and assets; it does not replay the data import or apply new D1 migrations. Review and back up the database before any separately planned schema/data change.
 
-Keep the release on workers.dev. Do not add routes, Custom Domains, or DNS changes as part of these updates. D1 management commands below explicitly use `--config wrangler.jsonc`, so a prior Vite build cannot redirect them to generated configuration. Deployment deliberately uses the generated production build.
+The production `routes` in `wrangler.jsonc` manage both Custom Domains, and `workers_dev` remains enabled. Keep these bindings when deploying ordinary app updates. The separate dashboard Redirect Rule described below is not managed by Wrangler. D1 management commands explicitly use `--config wrangler.jsonc`, so a prior Vite build cannot redirect them to generated configuration. Deployment deliberately uses the generated production build.
+
+## Domain routing and canonical redirect
+
+Hover already delegated the domain to `deb.ns.cloudflare.com` and `aragorn.ns.cloudflare.com`; those nameservers were unchanged during this cutover. Exactly two old proxied CNAMEs, for the apex and `www`, pointed to `gimme-presents.herokuapp.com`. They were replaced by Worker-managed records when the Custom Domains were attached. The D1 database was unchanged.
+
+The `www` canonical redirect is an active Cloudflare **Single Redirect rule**, managed in the dashboard outside `wrangler.jsonc`:
+
+| Setting | Required value |
+| --- | --- |
+| Rule name | `WWW to HTTPS main domain` |
+| Condition | `(http.host eq "www.gimmesomefreakingpresents.com")` |
+| Dynamic destination | `concat("https://gimmesomefreakingpresents.com", http.request.uri.path)` |
+| Status | 301 |
+| Preserve query string | Enabled (`preserve_query_string: true`) |
+
+The obsolete `www` Page Rule is disabled, confirmed in the Cloudflare dashboard. The active Single Redirect rule owns this forwarding behavior. A Worker deployment does not reconcile these dashboard rules; retain the rule name, expression, and query-string setting when managing them separately.
+
+Main-domain HTTPS/API and browser checks passed. Live mutation checks also passed using a temporary list: gift creation, reordering, renaming, reload persistence, an unauthorized edit returning 403, and cleanup. Remote readback afterward confirmed 135 lists and 848 gifts with no foreign-key violations.
+
+HTTP apex, HTTP `www`, and HTTPS `www` each returned a 301 directly to the HTTPS apex while preserving `/lists-are-hard?check=domain`, followed by a 200 response. Opening the `www` list URL in the browser landed on the apex and rendered the actual imported gift list. The replacement redirect and disabled legacy Page Rule were both verified.
 
 ## Remote data readback
 
@@ -47,9 +70,9 @@ npx wrangler d1 execute DB --env production --remote --config wrangler.jsonc --c
 
 The import baseline is 91 owners, 135 lists, 848 gifts, and zero sessions. New usage and smoke tests can add owners/sessions, so that baseline is historical rather than an invariant. Both missing-reference counts should be zero, and `foreign_key_check` should return no violations. These queries expose counts/integrity results rather than list contents.
 
-## Live smoke checks
+## Initial workers.dev smoke checks
 
-The following checks passed on the deployed workers.dev site:
+The following checks passed on the initial workers.dev release, version `783e5120-8e91-42c2-9f2f-ee876a1deb1a`:
 
 - `/api/health` returned success, and `/api/local/lists` returned 404 in production.
 - An imported slug and its numeric link returned view-only access and the exact expected gift order. The imported list rendered in the browser with fonts, images, 11 gifts, and no edit forms.
@@ -57,13 +80,13 @@ The following checks passed on the deployed workers.dev site:
 - Cookie ownership and `/api/me` were verified through live API requests; an unauthenticated edit attempt returned 403.
 - The ownership cookie was Secure, HttpOnly, SameSite=Lax, and host-only.
 
-Only disposable records were used for mutation checks. After cleanup, remote readback confirmed 135 lists, 848 gifts, and all 91 legacy owners, with no foreign-key violations. A test owner/session may remain after deleting its list. These results verify the workers.dev release, not a future main domain.
+Only disposable records were used for mutation checks. After cleanup, remote readback confirmed 135 lists, 848 gifts, and all 91 legacy owners, with no foreign-key violations. A test owner/session may remain after deleting its list. These results verify that workers.dev release; custom-domain verification is tracked separately above.
 
-## Ownership and the future main domain
+## Ownership across hostnames
 
 Imported lists retain their public slugs and owner relationships, but legacy Rails sessions and Google credentials are not imported. There is no ownership-claim endpoint or email recovery in this version. Imported lists are view-only on the new site; new lists belong to the browser that creates them. New sessions have a rolling 180-day lifetime, renewed on use at most once per day. Lost, cleared, or expired cookies remain unrecoverable.
 
-**The main domain must remain unchanged until a later request.** Before that future move, decide how to handle editing access for legacy owners and for lists created on workers.dev. Cookies are host-only and will not transfer to a custom domain automatically. A workers.dev smoke test also cannot verify routing or cookies on a future hostname. Do not grant ownership based solely on a public slug or an unverified email address.
+Cookies are host-only and do not transfer between workers.dev, the apex, and `www`. Lists created on workers.dev remain editable at that address with their existing cookie; viewing the same list on the apex does not carry that editing credential. Use the HTTPS apex for new lists and share links; `www` redirects there. A recovery/ownership bridge would be separate work. Do not grant ownership based solely on a public slug or an unverified email address.
 
 Email recovery and draggable/resizable image layouts remain future work. No Google auth, email service, or R2 bucket is required for the current release.
 

@@ -2,7 +2,7 @@
 
 A small Christmas list builder: React and Vite in the browser, a Hono API on Cloudflare Workers, and SQLite data in Cloudflare D1. The original Rails CSS, native input appearance, spacing, fixed forms, edit popovers, link controls, and sarcastic copy are retained. This is a runtime port, not a UI redesign; the original mobile layout and its quirks are intentional. Google sign-in and its account-only list history are removed.
 
-Live on [gimme-presents.fivefourths.workers.dev](https://gimme-presents.fivefourths.workers.dev) since 2026-10-20. The reviewed August backup is imported: 135 lists and 848 attached gifts. Live smoke checks passed on workers.dev. The main domain is unchanged and remains deferred.
+Live on [gimmesomefreakingpresents.com](https://gimmesomefreakingpresents.com) since 2026-10-20. Both the apex and `www` are attached as Cloudflare Worker Custom Domains; `www` redirects to the HTTPS apex with paths and query strings preserved. The [workers.dev address](https://gimme-presents.fivefourths.workers.dev) remains available. The domain change reused the existing D1 database without reimporting it: 135 lists and 848 attached gifts remain after smoke-test cleanup. Main-domain browser, ownership, editing, and redirect checks passed.
 
 ## Run locally
 
@@ -34,9 +34,9 @@ npm run build
 
 Production runs in the personal Cloudflare account using the repository's saved `pp-diaper` Wrangler profile. Its account and D1 IDs are pinned in `wrangler.jsonc`. To update the deployed app, confirm the personal account with `npx wrangler whoami`, then run `npm run deploy`. The database is already populated: do not repeat its initial import for an ordinary update.
 
-**Imported lists are public and view-only.** Rails sessions and Google authentication were not imported. New lists use anonymous browser ownership. Cookies created on workers.dev will not transfer automatically to a future custom domain.
+**Imported lists are public and view-only.** Rails sessions and Google authentication were not imported. New lists use anonymous browser ownership. Cookies are host-only: a list created on workers.dev remains editable there with its existing cookie, but that cookie does not grant editing on the main domain.
 
-See [the deployment and recovery guide](docs/DEPLOYMENT.md) for the deployed version, remote readback, live verification status, backups, and archival recovery tools. No main-domain, Custom Domain, or DNS change is part of this release.
+See [the deployment and recovery guide](docs/DEPLOYMENT.md) for the deployed version, domain routing, remote readback, verification status, backups, and archival recovery tools. The `www` canonical redirect uses a Cloudflare Single Redirect rule outside Wrangler, preserving the path and query string on the HTTPS apex domain.
 
 ## Scope
 
