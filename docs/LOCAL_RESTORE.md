@@ -1,5 +1,7 @@
 # Local restore of the August 2026 snapshot
 
+This records the local restore on October 19. The same reviewed data was deployed to workers.dev on October 20; see [the current deployment status](DEPLOYMENT.md).
+
 The supplied `data/gimme-presents-heroku-production-raw-2026-08-15.dump` was restored locally on October 19, 2026. Its SHA-256 matched the supplied checksum:
 
 ```text
