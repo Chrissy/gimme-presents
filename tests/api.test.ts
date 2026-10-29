@@ -1,10 +1,18 @@
 import { env, exports as worker } from 'cloudflare:workers';
-import { describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ListResponse, LocalListsResponse, MeResponse } from '../shared/api';
 import app from '../worker';
 
 const ORIGIN = 'https://gimme.test';
 const BASE_GIFT = { name: 'A good book', url: 'https://example.com/book', image: 'https://example.com/book.jpg', price: '12.34' };
+
+beforeEach(() => {
+  vi.spyOn(globalThis, 'fetch').mockImplementation(async input => {
+    if (String(input) !== BASE_GIFT.image) throw new Error('Unexpected external request');
+    return new Response(Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRZkAAAAASUVORK5CYII='), char => char.charCodeAt(0)));
+  });
+});
+afterEach(() => vi.restoreAllMocks());
 
 function request(path: string, method = 'GET', body?: unknown, cookie?: string, overrides: Record<string, string> = {}) {
   const headers = new Headers({ Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', ...overrides });

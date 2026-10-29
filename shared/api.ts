@@ -12,6 +12,8 @@ export interface Gift {
   name: string;
   url: string;
   image: string;
+  /** Hosted media path when copied to R2; otherwise the original image URL. */
+  imageUrl: string;
   priceCents: number | null;
   position: number;
 }

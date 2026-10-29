@@ -14,7 +14,7 @@ npm run db:migrate:local
 npm run dev
 ```
 
-Open the address printed by Vite. Create a list, then add gifts with a name, product URL, image URL, and optional price. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
+Open the address printed by Vite. Create a list, then add gifts with a name, product URL, image URL, and optional price. New image links are copied into R2 (simulated locally) and served from this app. Use a public PNG, JPEG, GIF, or WebP link of at most 5 MiB. Existing images remain external until migrated or replaced. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
 
 The local-only `/local/all-lists` page is a plain index of every list, newest first, with creation dates and gift counts. Its API returns 404 in production. To inspect an imported database separately from your ordinary development data, run `GIMME_LOCAL_STATE_DIR=/path/to/rehearsal-state npm run dev`, using the same directory as Wrangler's `--persist-to` argument. See the [local restore report](docs/LOCAL_RESTORE.md) for the supplied August 2026 snapshot.
 
@@ -40,4 +40,4 @@ See [the deployment and recovery guide](docs/DEPLOYMENT.md) for the deployed ver
 
 ## Scope
 
-This version includes anonymous ownership and ordinary list/gift editing. Google OAuth, email recovery, image uploads, and the future drag/resize image layout editor are not included. Image fields remain external URLs; no R2 bucket or email service is required. React provides the base for adding layout metadata and interactive image editing later.
+This version includes anonymous ownership, ordinary list/gift editing, and R2 hosting for newly saved image URLs. Production deployment requires the R2 bucket and additive D1 migration described in the [image hosting plan](docs/IMAGE_HOSTING_PLAN.md). That plan also covers a separate legacy-image migration, a small `+` menu with URL/local upload and clipboard-paste previews, and later image discovery from product URLs. Those UI features, Google OAuth, email recovery, and the future drag/resize image layout editor are not included yet.
