@@ -5,6 +5,7 @@ import {
   conflict, findList, LIST_WRITE_GUARD, listResponse, localLists, mutateList, ownedList, ownedLists, requireGift,
 } from './database';
 import { badRequest, giftIds, giftInput, id, jsonBody, name, revision } from './validation';
+import { serveImage, storeImage } from './images';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -98,13 +99,14 @@ app.post('/api/lists/:id/gifts', async c => {
   const body = await jsonBody(c);
   const gift = giftInput(body);
   const { list, ownerId } = await ownedList(c, id(c.req.param('id')), revision(body.revision));
+  const imageKey = await storeImage(c.env.GIFT_IMAGES, gift.image);
   const now = new Date().toISOString();
   return c.json(await mutateList(c.env.DB, list, ownerId, [
     c.env.DB.prepare(`
-      INSERT INTO gifts (list_id, name, url, image, price_cents, position, created_at, updated_at)
-      SELECT ?, ?, ?, ?, ?, COALESCE((SELECT MAX(position) FROM gifts WHERE list_id = ?), 0) + 1, ?, ?
+      INSERT INTO gifts (list_id, name, url, image, image_key, price_cents, position, created_at, updated_at)
+      SELECT ?, ?, ?, ?, ?, ?, COALESCE((SELECT MAX(position) FROM gifts WHERE list_id = ?), 0) + 1, ?, ?
       WHERE ${LIST_WRITE_GUARD}
-    `).bind(list.id, gift.name, gift.url, gift.image, gift.priceCents, list.id, now, now, list.id, ownerId, list.revision),
+    `).bind(list.id, gift.name, gift.url, gift.image, imageKey, gift.priceCents, list.id, now, now, list.id, ownerId, list.revision),
   ], now));
 });
 
@@ -114,12 +116,17 @@ app.put('/api/lists/:id/gifts/:giftId', async c => {
   const giftId = id(c.req.param('giftId'));
   const { list, ownerId } = await ownedList(c, id(c.req.param('id')), revision(body.revision));
   await requireGift(c.env.DB, list.id, giftId);
+  const previous = await c.env.DB.prepare('SELECT image, image_key FROM gifts WHERE id = ? AND list_id = ?')
+    .bind(giftId, list.id).first<{ image: string; image_key: string | null }>();
+  const unchangedImage = previous && (previous.image === body.image || previous.image === gift.image);
+  const imageKey = unchangedImage ? previous.image_key : await storeImage(c.env.GIFT_IMAGES, gift.image);
+  if (unchangedImage) gift.image = previous.image;
   const now = new Date().toISOString();
   return c.json(await mutateList(c.env.DB, list, ownerId, [
     c.env.DB.prepare(`
-      UPDATE gifts SET name = ?, url = ?, image = ?, price_cents = ?, updated_at = ?
+      UPDATE gifts SET name = ?, url = ?, image = ?, image_key = ?, price_cents = ?, updated_at = ?
       WHERE id = ? AND list_id = ? AND ${LIST_WRITE_GUARD}
-    `).bind(gift.name, gift.url, gift.image, gift.priceCents, now, giftId, list.id, list.id, ownerId, list.revision),
+    `).bind(gift.name, gift.url, gift.image, imageKey, gift.priceCents, now, giftId, list.id, list.id, ownerId, list.revision),
   ], now));
 });
 
@@ -157,6 +164,8 @@ app.post('/api/lists/:id/reorder', async c => {
 
 app.all('/api', c => c.json({ error: 'That API route could not be found.' }, 404));
 app.all('/api/*', c => c.json({ error: 'That API route could not be found.' }, 404));
+app.on(['GET', 'HEAD'], '/media/:key', serveImage);
+app.all('/media/*', c => c.text('Image not found.', 404));
 app.all('*', c => c.env.ASSETS.fetch(c.req.raw));
 
 app.onError((error, c) => {

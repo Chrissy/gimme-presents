@@ -27,6 +27,8 @@ The production account ID and database UUID are pinned in `wrangler.jsonc`; the 
 
 ## Updating the deployed app
 
+The pending R2 image-hosting release requires bucket creation and migration `0002_gift_images.sql` **before** deployment. Follow the [image-hosting rollout](IMAGE_HOSTING_PLAN.md#first-deployment). The production release information above is historical until that rollout is completed; opening the PR does not change production.
+
 Use Node.js 24 and the reviewed source. Verify that Wrangler is using the personal account before deployment. This repository uses the existing `pp-diaper` auth profile; the global default used during initial development was a work account and must not be used for this project.
 
 ```sh

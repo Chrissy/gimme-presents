@@ -8,9 +8,10 @@
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api", "/api/*"]
+    "run_worker_first": ["/api", "/api/*", "/media/*"]
   },
   "vars": { "ENVIRONMENT": "local" },
+  "r2_buckets": [{ "binding": "GIFT_IMAGES", "bucket_name": "gimme-presents-images-local" }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -29,6 +30,7 @@
         { "pattern": "www.gimmesomefreakingpresents.com", "custom_domain": true }
       ],
       "vars": { "ENVIRONMENT": "production" },
+      "r2_buckets": [{ "binding": "GIFT_IMAGES", "bucket_name": "gimme-presents-images" }],
       "d1_databases": [
         {
           "binding": "DB",

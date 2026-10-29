@@ -294,7 +294,8 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
     {typeof noticeTarget === 'number' && noticeTarget !== editingId && notices}
     <div className="gifts">
       {data.gifts.map((gift, index) => <article className="gift" key={gift.id} aria-label={gift.name}>
-        <img src={safeRemoteUrl(gift.image)} alt={gift.image ? gift.name : ''} /><br />
+        <img src={/^\/media\/[a-f0-9-]+\.(png|jpg|gif|webp)$/.test(gift.imageUrl)
+          ? gift.imageUrl : safeRemoteUrl(gift.imageUrl)} alt={gift.image ? gift.name : ''} /><br />
         <a href={safeRemoteUrl(gift.url) ?? ''}>{gift.name}</a><br />
         <span className="price">{gift.priceCents !== null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gift.priceCents / 100) : ''}</span>
         {data.canEdit && <> <div className="controls">
