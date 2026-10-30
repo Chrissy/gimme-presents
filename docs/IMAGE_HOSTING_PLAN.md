@@ -2,7 +2,7 @@
 
 Build this in small PRs, reviewing each step before starting the next. R2 is the storage layer; the existing Worker controls writes and serves public image URLs. Keep the current UI intact until the capture UI step.
 
-## 1. Host new image links in R2 (this PR)
+## 1. Host new image links in R2 (implemented in #26)
 
 When an owner saves a gift with a new image URL, download the image once, store its bytes in R2, and display our `/media/<key>` URL. Retain the original URL in `gifts.image` and add a nullable `image_key`; the API supplies `imageUrl` for display. A blank image remains valid. Editing a title or price without changing the source does not refetch it, including for legacy gifts.
 
@@ -20,13 +20,17 @@ Back up current D1 and create a dry-run inventory of distinct sources. Copy in b
 
 Add reference-aware cleanup with a dry-run report and grace period for failed writes, replacements and deletions. Confirm retention and cache expectations before removing objects.
 
-## 3. Add the image capture UI
+## 3. Add the image capture UI (implemented ahead of migration)
 
-Add a small `+` button at the bottom right of the image-entry area, using the familiar Slack interaction. Its menu offers **Paste image URL** and **Upload from device**. When image data is on the clipboard, normal paste in the composer adds it directly without needing to open the menu. Preserve ordinary text paste when the clipboard does not contain an image.
+A small `+` button at the bottom right of each gift form replaces the permanent “Link to a photo” input. Its menu offers **Upload from device** and **Paste image URL**. Image clipboard paste is scoped to the gift form and uses the file path; ordinary text paste is unchanged. One image is supported per gift.
 
-All three sources—URL, local file, clipboard image—show a preview with remove/replace, upload progress, and a recoverable failure state. Clipboard images upload through the same owner-authorized pipeline as local files. Use temporary browser object URLs for immediate file previews and release them after use. Define whether previews upload immediately or on gift save, and how abandoned uploads expire, before implementation. Provide keyboard-accessible controls and mobile file selection. Keep a source URL distinct from the hosted display URL.
+All three sources show a removable thumbnail before saving. Local files use temporary browser object URLs, which are revoked when replaced or the form unmounts. URL entry exists only in the menu. Escape and outside clicks dismiss the popover. Existing saved images appear in the editor preview; `+` replaces them and `×` removes them. Mobile editing keeps the controls within the viewport.
 
-Review the interaction and placement before changing the existing form. This step should not require an AI feature.
+Upload happens **on gift save**, not on selection. This avoids abandoned uploads from canceled previews. A multipart request contains the gift fields and one image file; it uses the existing create/update endpoint and ownership/revision checks. Both the entire request and the file are size-bounded, and the existing byte-signature validation is shared with URL ingestion. The browser shows “Saving…” while the request is pending. File bytes and fields stay in the draft on failure or a revision conflict, so the user can retry. Unsaved local files are not persisted across page reloads.
+
+Uploaded images have no external source URL. Ordinary edits preserve their key; an explicit `removeImage` flag clears it. No new database migration or R2 binding is needed beyond the hosting release. The image content policy permits `blob:` previews; script and object policies remain unchanged. Superseded/stale-write objects still follow the retention/cleanup policy above.
+
+Acceptance: preview before save, upload/reload/public delivery, edit without losing an uploaded image, removal/replacement, URL errors with preserved drafts, clipboard image paste, unchanged text paste, invalid/oversized-file rejection, keyboard dismissal, and desktop/mobile browser coverage. AI discovery and the existing-image backfill remain separate work.
 
 ## 4. Discover images from product URLs
 
@@ -36,7 +40,7 @@ Review the agent behavior and budget separately after the manual capture workflo
 
 ## First deployment
 
-This PR is stacked on the production configuration in PR #25. Merge that configuration first, then retarget this PR to `master`. No production bucket, migration, backfill or deployment is performed merely by opening this PR.
+The hosting work from PR #26 was merged into the production configuration branch in PR #25. That prerequisite must land on `master` before the image capture PR can target it with only the UI/upload changes. No production bucket, migration, backfill or deployment is performed merely by opening a PR.
 
 Verify the personal `pp-diaper` profile/account (`6fcfd050639f1bcffd6534443c89e0e5`) before any remote operation. Commands below are operator steps for the reviewed release, not an automatic rollout:
 
