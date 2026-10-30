@@ -41,6 +41,8 @@ export interface LocalListsResponse {
 }
 
 export interface GiftInput {
+  /** Explicit removal also clears uploaded images, which have no source URL. */
+  removeImage?: boolean;
   name: string;
   url: string;
   image: string;

@@ -157,3 +157,66 @@ describe('hosted gift images', () => {
     }
   });
 });
+
+describe('image file uploads', () => {
+  function upload(path: string, method: string, cookie: string, fields: object, bytes: Uint8Array = PNG, mime = 'image/png') {
+    const form = new FormData();
+    form.set('gift', JSON.stringify(fields));
+    form.set('imageFile', new File([new Uint8Array(bytes)], 'photo.png', { type: mime }));
+    return worker.default.fetch(`${ORIGIN}${path}`, {
+      method, headers: { Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', Cookie: cookie }, body: form,
+    });
+  }
+
+  it('uploads bytes on create, preserves the image on rename, replaces it, and explicitly removes it', async () => {
+    const user = await owner();
+    const saved = await upload(user.path, 'POST', user.cookie, { ...gift, image: '', revision: 0 });
+    expect(saved.status).toBe(200);
+    let data = await saved.json<ListResponse>();
+    expect(data.gifts[0].image).toBe('');
+    const firstUrl = data.gifts[0].imageUrl;
+    expect(firstUrl).toMatch(/^\/media\//);
+    expect(new Uint8Array(await (await request(firstUrl)).arrayBuffer())).toEqual(PNG);
+    const path = `${user.path}/${data.gifts[0].id}`;
+    data = await (await request(path, 'PUT', { ...gift, image: '', name: 'Renamed upload', revision: 1 }, user.cookie)).json<ListResponse>();
+    expect(data.gifts[0].imageUrl).toBe(firstUrl);
+    data = await (await upload(path, 'PUT', user.cookie, { ...gift, image: '', revision: 2 })).json<ListResponse>();
+    expect(data.gifts[0].imageUrl).not.toBe(firstUrl);
+    expect(data.gifts[0].imageUrl).toMatch(/^\/media\//);
+    data = await (await request(path, 'PUT', { ...gift, image: '', removeImage: true, revision: 3 }, user.cookie)).json<ListResponse>();
+    expect(data.gifts[0].imageUrl).toBe('');
+    expect(await env.DB.prepare('SELECT image_key FROM gifts').first('image_key')).toBeNull();
+    expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('rejects unauthorized, stale, invalid and oversized uploads without writing to R2', async () => {
+    const user = await owner();
+    const stranger = await owner();
+    const fields = { ...gift, image: '', revision: 0 };
+    for (const cookie of ['', stranger.cookie]) expect((await upload(user.path, 'POST', cookie, fields)).status).toBe(403);
+    expect((await upload(user.path, 'POST', user.cookie, { ...fields, revision: 99 })).status).toBe(409);
+    expect((await upload(user.path, 'POST', user.cookie, fields, new TextEncoder().encode('<svg/>'))).status).toBe(422);
+    expect((await upload(user.path, 'POST', user.cookie, fields, new Uint8Array(MAX_IMAGE_BYTES + 1))).status).toBe(413);
+    expect((await upload(user.path, 'POST', user.cookie, { ...fields, image: SOURCE })).status).toBe(400);
+    expect((await upload(user.path, 'POST', user.cookie, { ...fields, removeImage: true })).status).toBe(400);
+    expect((await env.GIFT_IMAGES.list()).objects).toHaveLength(0);
+    expect(await env.DB.prepare('SELECT COUNT(*) FROM gifts').first('COUNT(*)')).toBe(0);
+  });
+
+  it('bounds streamed multipart bytes and rejects malformed metadata', async () => {
+    const user = await owner();
+    const malformed = new FormData();
+    malformed.set('gift', '{');
+    malformed.set('imageFile', new File([PNG], 'photo.png'));
+    const response = await worker.default.fetch(`${ORIGIN}${user.path}`, {
+      method: 'POST', headers: { Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', Cookie: user.cookie }, body: malformed,
+    });
+    expect(response.status).toBe(400);
+    const tooBig = await worker.default.fetch(`${ORIGIN}${user.path}`, {
+      method: 'POST', headers: { Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', Cookie: user.cookie, 'Content-Type': 'multipart/form-data; boundary=test' },
+      body: new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(MAX_IMAGE_BYTES + 64 * 1024)); controller.close(); } }),
+    });
+    expect(tooBig.status).toBe(413);
+    expect((await env.GIFT_IMAGES.list()).objects).toHaveLength(0);
+  });
+});

@@ -33,10 +33,10 @@ function imageType(bytes: Uint8Array): { type: string; extension: string } {
   if (bytes.length >= 16 && text(0, 4) === 'RIFF' && text(8, 12) === 'WEBP') {
     return { type: 'image/webp', extension: 'webp' };
   }
-  return invalidImage('That link must contain a PNG, JPEG, GIF, or WebP image.');
+  return invalidImage('Choose a PNG, JPEG, GIF, or WebP image.');
 }
 
-async function downloadImage(source: string): Promise<Uint8Array> {
+async function downloadImage(source: string): Promise<Uint8Array<ArrayBuffer>> {
   let url = publicImageUrl(source);
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), 10_000);
@@ -95,6 +95,11 @@ async function downloadImage(source: string): Promise<Uint8Array> {
 export async function storeImage(bucket: R2Bucket, source: string): Promise<string | null> {
   if (!source) return null;
   const bytes = await downloadImage(source);
+  return storeImageBytes(bucket, bytes);
+}
+
+export async function storeImageBytes(bucket: R2Bucket, bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+  if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) return invalidImage('Choose an image up to 5 MB.');
   const { type, extension } = imageType(bytes);
   const key = `${crypto.randomUUID()}.${extension}`;
   await bucket.put(key, bytes, { httpMetadata: { contentType: type } });

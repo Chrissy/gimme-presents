@@ -3,6 +3,7 @@ import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import type { Gift, GiftInput, ListResponse } from '../shared/api';
 import { errorMessage, request, RequestError, write } from './api';
 import { AllListsPage } from './AllListsPage';
+import { ImagePicker, type GiftDraft } from './ImagePicker';
 
 const blankGift: GiftInput = { name: '', url: '', image: '', price: '' };
 
@@ -67,32 +68,37 @@ function HomePage() {
   </main>;
 }
 
-function giftInput(gift: Gift): GiftInput {
-  return { name: gift.name, url: gift.url, image: gift.image, price: gift.priceCents === null ? '' : String(gift.priceCents / 100) };
+function giftInput(gift: Gift): GiftDraft {
+  return { name: gift.name, url: gift.url, image: gift.image, imageUrl: gift.imageUrl, price: gift.priceCents === null ? '' : String(gift.priceCents / 100) };
 }
 
 function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice }: {
-  value: GiftInput;
-  onChange: (value: GiftInput) => void;
+  value: GiftDraft;
+  onChange: (value: GiftDraft) => void;
   onSubmit: () => void;
   busy: boolean;
   editing?: boolean;
   children?: ReactNode;
   notice?: ReactNode;
 }) {
-  return <form className={editing ? 'edit_gift' : 'new_gift'} onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
+  const formRef = useRef<HTMLFormElement>(null);
+  return <form ref={formRef} aria-busy={busy} className={editing ? 'edit_gift' : 'new_gift'} onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
     <h3 className="add-message">Add a sweet present!</h3>
     <div className="form_block primary">
-      <input type="text" aria-label="Gift name" name="name" value={value.name} placeholder="Name"
+      <input type="text" disabled={busy} aria-label="Gift name" name="name" value={value.name} placeholder="Name"
         onChange={(event) => onChange({ ...value, name: event.target.value })} />{' '}
-      <input type="text" aria-label="Gift URL" name="url" value={value.url} placeholder="URL"
+      <input type="text" disabled={busy} aria-label="Gift URL" name="url" value={value.url} placeholder="URL"
         onChange={(event) => onChange({ ...value, url: event.target.value })} />{' '}
-      <input type="text" aria-label="Image URL" name="image" value={value.image} placeholder="Link to a photo"
-        onChange={(event) => onChange({ ...value, image: event.target.value })} />{' '}
-      <input type="text" aria-label="Price in dollars" name="price" value={value.price} placeholder="Price"
+      <input type="text" disabled={busy} aria-label="Price in dollars" name="price" value={value.price} placeholder="Price"
         onChange={(event) => onChange({ ...value, price: event.target.value })} /><br />
-      <SubmitLink disabled={busy}>{editing ? 'update my gift!' : 'create my gift!'}</SubmitLink>
-      {children}
+      <div className="gift-footer">
+        <ImagePicker value={value} onChange={onChange} busy={busy} formRef={formRef} />
+        <div className="gift-actions">
+          <SubmitLink disabled={busy}>{editing ? 'update my gift!' : 'create my gift!'}</SubmitLink>
+          {children}
+          {busy && <span className="gift-saving" role="status">Saving…</span>}
+        </div>
+      </div>
     </div>
     {notice}
   </form>;
@@ -119,9 +125,9 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   const [noticeTarget, setNoticeTarget] = useState<'new-gift' | 'list' | number>('new-gift');
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
-  const [newGift, setNewGift] = useState<GiftInput>({ ...blankGift });
+  const [newGift, setNewGift] = useState<GiftDraft>({ ...blankGift });
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [giftDrafts, setGiftDrafts] = useState<Record<number, GiftInput>>({});
+  const [giftDrafts, setGiftDrafts] = useState<Record<number, GiftDraft>>({});
   const [listName, setListName] = useState('');
   const mutationLock = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
@@ -152,11 +158,12 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
 
   useEffect(() => {
     if (editingId === null) return;
-    const closeEditor = (event: MouseEvent) => {
+    const closeEditor = (event: PointerEvent) => {
       if (event.target instanceof Node && !editorRef.current?.contains(event.target)) setEditingId(null);
     };
-    document.addEventListener('click', closeEditor);
-    return () => document.removeEventListener('click', closeEditor);
+    // Check before a click can remove its own target (for example a preview's ×).
+    document.addEventListener('pointerdown', closeEditor);
+    return () => document.removeEventListener('pointerdown', closeEditor);
   }, [editingId]);
 
   async function mutate(operation: () => Promise<ListResponse>, target: typeof noticeTarget = 'new-gift'): Promise<boolean> {
@@ -212,13 +219,23 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   const mutationPath = `/api/lists/${list.id}`;
   const common = { revision: list.revision };
 
+  function writeGift(path: string, method: string, draft: GiftDraft): Promise<ListResponse> {
+    const { imageFile, imageUrl: _preview, ...fields } = draft;
+    const payload = { ...fields, ...common };
+    if (!imageFile) return write<ListResponse>(path, method, payload);
+    const form = new FormData();
+    form.set('gift', JSON.stringify(payload));
+    form.set('imageFile', imageFile);
+    return request<ListResponse>(path, { method, body: form });
+  }
+
   async function addGift() {
-    await mutate(() => write<ListResponse>(`${mutationPath}/gifts`, 'POST', { ...newGift, ...common }));
+    await mutate(() => writeGift(`${mutationPath}/gifts`, 'POST', newGift));
   }
 
   async function saveGift() {
     if (editingId === null) return;
-    await mutate(() => write<ListResponse>(`${mutationPath}/gifts/${editingId}`, 'PUT', { ...giftDrafts[editingId], ...common }), editingId);
+    await mutate(() => writeGift(`${mutationPath}/gifts/${editingId}`, 'PUT', giftDrafts[editingId]), editingId);
   }
 
   async function deleteGift(gift: Gift) {
@@ -295,7 +312,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
     <div className="gifts">
       {data.gifts.map((gift, index) => <article className="gift" key={gift.id} aria-label={gift.name}>
         <img src={/^\/media\/[a-f0-9-]+\.(png|jpg|gif|webp)$/.test(gift.imageUrl)
-          ? gift.imageUrl : safeRemoteUrl(gift.imageUrl)} alt={gift.image ? gift.name : ''} /><br />
+          ? gift.imageUrl : safeRemoteUrl(gift.imageUrl)} alt={gift.imageUrl ? gift.name : ''} /><br />
         <a href={safeRemoteUrl(gift.url) ?? ''}>{gift.name}</a><br />
         <span className="price">{gift.priceCents !== null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gift.priceCents / 100) : ''}</span>
         {data.canEdit && <> <div className="controls">
