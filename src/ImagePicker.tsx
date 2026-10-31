@@ -1,12 +1,12 @@
 import { useEffect, useId, useRef, useState, type RefObject } from 'react';
 import type { GiftInput } from '../shared/api';
+import { IMAGE_SIZE_ERROR, MAX_IMAGE_BYTES } from '../shared/image-limits';
 
 export interface GiftDraft extends GiftInput {
   imageFile?: File;
   imageUrl?: string;
 }
 
-const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
 const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/gif', 'image/webp'];
 
 function imageLink(value: string): string | undefined {
@@ -63,7 +63,7 @@ export function ImagePicker({ value, onChange, busy, formRef }: {
       return;
     }
     if (!file.size || file.size > MAX_IMAGE_BYTES) {
-      setError('Choose an image up to 5 MB.');
+      setError(IMAGE_SIZE_ERROR);
       return;
     }
     onChange({ ...value, image: '', imageUrl: undefined, imageFile: file, removeImage: false });

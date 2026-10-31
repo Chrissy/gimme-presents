@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { readFileSync } from 'node:fs';
 
 async function createList(page: Page) {
@@ -112,7 +113,14 @@ test('invalid local files do not replace a selected image', async ({ page }) => 
   await upload.setInputFiles({ name: 'bad.svg', mimeType: 'image/svg+xml', buffer: Buffer.from('<svg/>') });
   await expect(add.getByRole('alert')).toContainText('PNG, JPEG, GIF, or WebP');
   await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', preview!);
-  await upload.setInputFiles({ name: 'large.png', mimeType: 'image/png', buffer: Buffer.alloc(5 * 1024 * 1024 + 1) });
-  await expect(add.getByRole('alert')).toContainText('up to 5 MB');
+  await upload.setInputFiles({ name: 'large.png', mimeType: 'image/png', buffer: Buffer.alloc(2 * 1024 * 1024 + 1) });
+  await expect(add.getByRole('alert')).toContainText('up to 2 MiB');
+  await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', preview!);
+  await add.locator('form').evaluate(form => {
+    const clipboard = new DataTransfer();
+    clipboard.items.add(new File([new Uint8Array(2 * 1024 * 1024 + 1)], 'clipboard.png', { type: 'image/png' }));
+    form.dispatchEvent(new ClipboardEvent('paste', { bubbles: true, cancelable: true, clipboardData: clipboard }));
+  });
+  await expect(add.getByRole('alert')).toContainText('up to 2 MiB');
   await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', preview!);
 });

@@ -1,4 +1,10 @@
 import { defineConfig, devices } from '@playwright/test';
+import { mkdtempSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
+// Start from shipped migrations, not a development DB with earlier schema drafts.
+process.env.GIMME_LOCAL_STATE_DIR ??= mkdtempSync(join(tmpdir(), 'gimme-e2e-'));
 
 export default defineConfig({
   testDir: './tests/e2e',
@@ -16,7 +22,7 @@ export default defineConfig({
     { name: 'mobile', use: { ...devices['iPhone 13'], defaultBrowserType: 'chromium' } },
   ],
   webServer: {
-    command: 'npm run db:migrate:local && npm run preview -- --port 4173',
+    command: 'npm run db:migrate:local -- --persist-to "$GIMME_LOCAL_STATE_DIR" && npm run preview -- --port 4173',
     url: 'http://127.0.0.1:4173',
     reuseExistingServer: false,
     timeout: 60_000,

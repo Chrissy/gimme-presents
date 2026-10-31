@@ -1,6 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from './auth';
-import { MAX_IMAGE_BYTES } from './images';
+import { IMAGE_SIZE_ERROR, MAX_IMAGE_BYTES } from '../shared/image-limits';
 
 const MAX_BODY_BYTES = 16 * 1024;
 
@@ -9,9 +9,9 @@ export function badRequest(message: string): never {
 }
 
 /** Bound actual streamed bytes before parsing JSON or multipart data. */
-async function bodyBytes(c: AppContext, limit: number): Promise<Uint8Array<ArrayBuffer>> {
+async function bodyBytes(c: AppContext, limit: number, sizeError = 'The request is too large.'): Promise<Uint8Array<ArrayBuffer>> {
   if (Number(c.req.header('Content-Length') ?? 0) > limit) {
-    throw new HTTPException(413, { message: 'The request is too large.' });
+    throw new HTTPException(413, { message: sizeError });
   }
   const reader = c.req.raw.body?.getReader();
   if (!reader) return badRequest('A request body is required.');
@@ -22,7 +22,7 @@ async function bodyBytes(c: AppContext, limit: number): Promise<Uint8Array<Array
       const { done, value } = await reader.read();
       if (done) break;
       size += value.byteLength;
-      if (size > limit) throw new HTTPException(413, { message: 'The request is too large.' });
+      if (size > limit) throw new HTTPException(413, { message: sizeError });
       chunks.push(value);
     }
   } finally {
@@ -56,7 +56,7 @@ export async function giftBody(c: AppContext): Promise<{ body: Record<string, un
   const contentType = c.req.header('Content-Type') ?? '';
   if (contentType.split(';')[0].trim().toLowerCase() !== 'multipart/form-data') return { body: await jsonBody(c) };
   // Allow bounded multipart framing in addition to the file and JSON metadata.
-  const bytes = await bodyBytes(c, MAX_IMAGE_BYTES + 2 * MAX_BODY_BYTES);
+  const bytes = await bodyBytes(c, MAX_IMAGE_BYTES + 2 * MAX_BODY_BYTES, IMAGE_SIZE_ERROR);
   let form: FormData;
   try { form = await new Response(bytes, { headers: { 'Content-Type': contentType } }).formData(); }
   catch { return badRequest('A valid image upload is required.'); }
@@ -65,7 +65,7 @@ export async function giftBody(c: AppContext): Promise<{ body: Record<string, un
   if (form.getAll('gift').length !== 1 || form.getAll('imageFile').length !== 1
     || typeof metadata !== 'string' || !(file instanceof File)) return badRequest('Provide one gift and one image.');
   if (new TextEncoder().encode(metadata).byteLength > MAX_BODY_BYTES) return badRequest('The gift details are too large.');
-  if (!file.size || file.size > MAX_IMAGE_BYTES) throw new HTTPException(413, { message: 'Choose an image up to 5 MB.' });
+  if (!file.size || file.size > MAX_IMAGE_BYTES) throw new HTTPException(413, { message: IMAGE_SIZE_ERROR });
   const body = jsonObject(metadata);
   if (body.image || body.removeImage) return badRequest('Choose one image source.');
   return { body, file };

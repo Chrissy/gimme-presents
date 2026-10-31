@@ -6,7 +6,7 @@ Build this in small PRs, reviewing each step before starting the next. R2 is the
 
 When an owner saves a gift with a new image URL, download the image once, store its bytes in R2, and display our `/media/<key>` URL. Retain the original URL in `gifts.image` and add a nullable `image_key`; the API supplies `imageUrl` for display. A blank image remains valid. Editing a title or price without changing the source does not refetch it, including for legacy gifts.
 
-Use the existing ownership, same-origin and revision checks before downloading. Limit downloads to 5 MiB and 10 seconds, validate every redirect (at most three), reject IP/local targets and nonstandard ports, and identify PNG/JPEG/GIF/WebP by file signatures rather than trusting the remote MIME type. SVG and other formats are not accepted for new copies in this step. Production uses Workers' public `fetch` network boundary; do not add private-origin or VPC access to this importer. Fetches carry no user cookies or credentials. No resizing, recompression, or metadata stripping is performed yet.
+Use the existing ownership, same-origin and revision checks before downloading. Limit downloads to 2 MiB and 10 seconds, validate every redirect (at most three), reject IP/local targets and nonstandard ports, and identify PNG/JPEG/GIF/WebP by file signatures rather than trusting the remote MIME type. SVG and other formats are not accepted for new copies in this step. Production uses Workers' public `fetch` network boundary; do not add private-origin or VPC access to this importer. Fetches carry no user cookies or credentials. No resizing, recompression, or metadata stripping is performed yet.
 
 Store before updating D1. A failed download leaves the gift and list revision unchanged and returns an actionable form error; never silently save a hotlink instead. The existing form keeps the draft for a retry. R2 errors also leave D1 unchanged. A stale write discovered after a download cannot change the list, though its newly uploaded object can remain unreferenced. Objects use unique immutable keys. Public GET/HEAD responses include the verified content type, `nosniff`, ETag/304 support and a one-year browser cache lifetime.
 
@@ -42,7 +42,7 @@ Review the agent behavior and budget separately after the manual capture workflo
 
 The hosting work from PR #26 was merged into the production configuration branch in PR #25. That prerequisite must land on `master` before the image capture PR can target it with only the UI/upload changes. No production bucket, migration, backfill or deployment is performed merely by opening a PR.
 
-Verify the personal `pp-diaper` profile/account (`6fcfd050639f1bcffd6534443c89e0e5`) before any remote operation. Commands below are operator steps for the reviewed release, not an automatic rollout:
+Verify that Wrangler is authenticated to the production account configured in `wrangler.jsonc` before any remote operation. Commands below are operator steps for a reviewed, approved release:
 
 ```sh
 npx wrangler whoami

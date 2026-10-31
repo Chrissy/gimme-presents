@@ -1,7 +1,9 @@
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from './auth';
+import { reserveImageRead, reserveImageUpload } from './image-budget';
+import { IMAGE_SIZE_ERROR, MAX_IMAGE_BYTES } from '../shared/image-limits';
 
-export const MAX_IMAGE_BYTES = 5 * 1024 * 1024;
+export { MAX_IMAGE_BYTES } from '../shared/image-limits';
 const KEY_PATTERN = /^[a-f0-9]{8}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{4}-[a-f0-9]{12}\.(png|jpg|gif|webp)$/;
 
 function invalidImage(message: string): never {
@@ -60,7 +62,7 @@ async function downloadImage(source: string): Promise<Uint8Array<ArrayBuffer>> {
       }
       if (Number(response.headers.get('Content-Length')) > MAX_IMAGE_BYTES) {
         await response.body.cancel();
-        return invalidImage('Choose an image smaller than 5 MB.');
+        return invalidImage(IMAGE_SIZE_ERROR);
       }
       // Bound streamed/decompressed bytes as well as the declared length.
       const reader = response.body.getReader();
@@ -71,7 +73,7 @@ async function downloadImage(source: string): Promise<Uint8Array<ArrayBuffer>> {
           const { done, value } = await reader.read();
           if (done) break;
           size += value.byteLength;
-          if (size > MAX_IMAGE_BYTES) return invalidImage('Choose an image smaller than 5 MB.');
+          if (size > MAX_IMAGE_BYTES) return invalidImage(IMAGE_SIZE_ERROR);
           chunks.push(value);
         }
       } finally {
@@ -92,14 +94,25 @@ async function downloadImage(source: string): Promise<Uint8Array<ArrayBuffer>> {
 }
 
 /** Call only after ownership and revision checks. Empty sources need no object. */
-export async function storeImage(bucket: R2Bucket, source: string): Promise<string | null> {
+export async function storeImage(db: D1Database, bucket: R2Bucket, source: string): Promise<string | null> {
   if (!source) return null;
+  publicImageUrl(source);
+  // Reserve the largest possible download before fetching. Failed downloads
+  // still consume a daily attempt; unused capacity stays reserved conservatively.
+  await reserveImageUpload(db, MAX_IMAGE_BYTES);
   const bytes = await downloadImage(source);
-  return storeImageBytes(bucket, bytes);
+  return putImage(bucket, bytes);
 }
 
-export async function storeImageBytes(bucket: R2Bucket, bytes: Uint8Array<ArrayBuffer>): Promise<string> {
-  if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) return invalidImage('Choose an image up to 5 MB.');
+export async function storeImageBytes(db: D1Database, bucket: R2Bucket, bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+  if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) return invalidImage(IMAGE_SIZE_ERROR);
+  imageType(bytes);
+  await reserveImageUpload(db, bytes.byteLength);
+  return putImage(bucket, bytes);
+}
+
+async function putImage(bucket: R2Bucket, bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+  if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) return invalidImage(IMAGE_SIZE_ERROR);
   const { type, extension } = imageType(bytes);
   const key = `${crypto.randomUUID()}.${extension}`;
   await bucket.put(key, bytes, { httpMetadata: { contentType: type } });
@@ -110,6 +123,12 @@ export async function serveImage(c: AppContext): Promise<Response> {
   const key = c.req.param('key') ?? '';
   const headers = new Headers({ 'X-Content-Type-Options': 'nosniff' });
   if (!KEY_PATTERN.test(key)) return new Response('Image not found.', { status: 404, headers });
+  // Count every R2 read, including misses, HEAD, conditional GET, and query-string
+  // cache busting. Public bucket endpoints must stay disabled to prevent bypass.
+  if (!await reserveImageRead(c.env.DB)) {
+    headers.set('Cache-Control', 'no-store');
+    return new Response('Images are temporarily paused to keep hosting within its usage limits.', { status: 429, headers });
+  }
   const object = await c.env.GIFT_IMAGES.get(key);
   if (!object) return new Response('Image not found.', { status: 404, headers });
   headers.set('Content-Type', object.httpMetadata?.contentType ?? 'application/octet-stream');

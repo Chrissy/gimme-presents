@@ -1,6 +1,12 @@
 # Deployment and recovery
 
-## Current production release
+## Deployment inventory
+
+Production bindings are configured in `wrangler.jsonc`. Verify the deployed
+Worker version and applied migrations through Wrangler before an approved
+release; a local checkout or open PR does not establish deployment status.
+
+## Previous verified production release
 
 The app was first deployed on **2026-10-20** to [gimme-presents.fivefourths.workers.dev](https://gimme-presents.fivefourths.workers.dev), using the reviewed August 15, 2026 backup. The same Worker is now also attached to [gimmesomefreakingpresents.com](https://gimmesomefreakingpresents.com) and [www.gimmesomefreakingpresents.com](https://www.gimmesomefreakingpresents.com) as Custom Domains. The workers.dev address remains available. The domain deployment reused the existing D1 binding and data without a migration or reimport.
 
@@ -9,9 +15,6 @@ The app was first deployed on **2026-10-20** to [gimme-presents.fivefourths.work
 | Worker | `gimme-presents` |
 | Worker version | `36374ff3-02f6-417b-ba3c-87ec7dd40b98` |
 | Deployment status | Custom-domain deployment, main-domain browser/API smoke checks, and canonical redirects verified |
-| Cloudflare account | Personal account for `fivefourths@gmail.com` |
-| Account ID | `6fcfd050639f1bcffd6534443c89e0e5` |
-| Saved Wrangler profile | `pp-diaper`, activated for this repository |
 | D1 database | `gimme-presents-production` |
 | D1 UUID | `03721551-2659-4493-a792-b85360cae0c2` |
 | Applied schema | `0001_initial.sql` |
@@ -27,9 +30,24 @@ The production account ID and database UUID are pinned in `wrangler.jsonc`; the 
 
 ## Updating the deployed app
 
-The pending R2 image-hosting release requires bucket creation and migration `0002_gift_images.sql` **before** deployment. Follow the [image-hosting rollout](IMAGE_HOSTING_PLAN.md#first-deployment). The production release information above is historical until that rollout is completed; opening the PR does not change production.
+Follow **PR → user review/merge → explicit deployment request → deploy the merged
+commit**. Requests to implement a feature or update a PR do not authorize a
+production release. New code discovered during release preparation must go
+through review and merge before requesting deployment of that new scope.
 
-Use Node.js 24 and the reviewed source. Verify that Wrangler is using the personal account before deployment. This repository uses the existing `pp-diaper` auth profile; the global default used during initial development was a work account and must not be used for this project.
+Fetch `origin/master`, verify the intended PR is merged into it and CI passed,
+and state the exact commit before touching production. Deploy a clean checkout
+at that commit with `npm run deploy`. Its source check fetches `origin/master`
+again and refuses local edits, untracked files, and any other HEAD. Do not bypass
+it with direct Wrangler deploy commands or previously generated bundles. The
+check verifies source provenance; it cannot substitute for the user's approval.
+
+The reviewed release must also authorize required database/configuration
+changes. The current PR adds `0004_family_usage_budgets.sql`; back up D1 before
+applying it after merge and approval. Never replay 0002/0003 or reset the budget
+row. See [the usage-limit guide](IMAGE_SPENDING_LIMITS.md).
+
+Use Node.js 24 and the reviewed source. Verify that Wrangler is authenticated to the production account configured in `wrangler.jsonc` before deployment.
 
 ```sh
 npx wrangler whoami
@@ -37,7 +55,7 @@ npm ci
 npm run deploy
 ```
 
-Confirm the `whoami` result is the intended personal identity/account before running the remaining commands. `npm run deploy` builds with `CLOUDFLARE_ENV=production` and deploys with `--env production`. It updates the Worker and assets; it does not replay the data import or apply new D1 migrations. Review and back up the database before any separately planned schema/data change.
+Confirm the `whoami` result matches the configured account before running the remaining commands. After verifying the approved merged source, `npm run deploy` builds with `CLOUDFLARE_ENV=production` and deploys with `--env production`. It updates the Worker and assets; it does not replay the data import or apply new D1 migrations. Review and back up the database before any separately planned schema/data change.
 
 The production `routes` in `wrangler.jsonc` manage both Custom Domains, and `workers_dev` remains enabled. Keep these bindings when deploying ordinary app updates. The separate dashboard Redirect Rule described below is not managed by Wrangler. D1 management commands explicitly use `--config wrangler.jsonc`, so a prior Vite build cannot redirect them to generated configuration. Deployment deliberately uses the generated production build.
 
