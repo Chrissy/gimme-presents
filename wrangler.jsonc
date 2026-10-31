@@ -8,9 +8,10 @@
   "assets": {
     "binding": "ASSETS",
     "not_found_handling": "single-page-application",
-    "run_worker_first": ["/api", "/api/*"]
+    "run_worker_first": ["/api", "/api/*", "/media/*"]
   },
   "vars": { "ENVIRONMENT": "local" },
+  "r2_buckets": [{ "binding": "GIFT_IMAGES", "bucket_name": "gimme-presents-images-local" }],
   "d1_databases": [
     {
       "binding": "DB",
@@ -23,13 +24,18 @@
   "env": {
     "production": {
       "name": "gimme-presents",
+      "account_id": "6fcfd050639f1bcffd6534443c89e0e5",
+      "routes": [
+        { "pattern": "gimmesomefreakingpresents.com", "custom_domain": true },
+        { "pattern": "www.gimmesomefreakingpresents.com", "custom_domain": true }
+      ],
       "vars": { "ENVIRONMENT": "production" },
+      "r2_buckets": [{ "binding": "GIFT_IMAGES", "bucket_name": "gimme-presents-images" }],
       "d1_databases": [
         {
           "binding": "DB",
           "database_name": "gimme-presents-production",
-          // Replace with the ID returned by `wrangler d1 create` before deploying.
-          "database_id": "00000000-0000-0000-0000-000000000000",
+          "database_id": "03721551-2659-4493-a792-b85360cae0c2",
           "migrations_dir": "migrations"
         }
       ]

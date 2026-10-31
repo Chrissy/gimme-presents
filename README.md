@@ -2,6 +2,8 @@
 
 A small Christmas list builder: React and Vite in the browser, a Hono API on Cloudflare Workers, and SQLite data in Cloudflare D1. The original Rails CSS, native input appearance, spacing, fixed forms, edit popovers, link controls, and sarcastic copy are retained. This is a runtime port, not a UI redesign; the original mobile layout and its quirks are intentional. Google sign-in and its account-only list history are removed.
 
+Live on [gimmesomefreakingpresents.com](https://gimmesomefreakingpresents.com) since 2026-10-20. Both the apex and `www` are attached as Cloudflare Worker Custom Domains; `www` redirects to the HTTPS apex with paths and query strings preserved. The [workers.dev address](https://gimme-presents.fivefourths.workers.dev) remains available. The domain change reused the existing D1 database without reimporting it: 135 lists and 848 attached gifts remain after smoke-test cleanup. Main-domain browser, ownership, editing, and redirect checks passed.
+
 ## Run locally
 
 Use Node.js 24 and npm. Local development uses simulated D1; a Cloudflare account is not needed for these commands.
@@ -12,7 +14,7 @@ npm run db:migrate:local
 npm run dev
 ```
 
-Open the address printed by Vite. Create a list, then add gifts with a name, product URL, image URL, and optional price. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
+Open the address printed by Vite. Create a list, then add gifts with a name, product URL, and optional price. Use the small **+** button to upload an image or paste an image URL; pasting an image from the clipboard while focused in the gift form also adds it. Each choice shows a removable preview. Images are uploaded or copied into R2 (simulated locally) only when the gift is saved, then served from this app. Choose a PNG, JPEG, GIF, or WebP image of at most 2 MiB; larger files show a size-limit error. Existing images remain external until migrated or replaced. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
 
 The local-only `/local/all-lists` page is a plain index of every list, newest first, with creation dates and gift counts. Its API returns 404 in production. To inspect an imported database separately from your ordinary development data, run `GIMME_LOCAL_STATE_DIR=/path/to/rehearsal-state npm run dev`, using the same directory as Wrangler's `--persist-to` argument. See the [local restore report](docs/LOCAL_RESTORE.md) for the supplied August 2026 snapshot.
 
@@ -30,12 +32,12 @@ npm run build
 
 ## Existing Rails data and deployment
 
-The offline tools in `scripts/` export a read-only PostgreSQL snapshot and generate D1 SQL. They preserve existing list/gift IDs, share slugs, owner associations, timestamps, prices, and gift ordering. They refuse inconsistent data and existing output files. Production configuration intentionally contains an unset D1 database ID.
+Production account and D1 bindings are configured in `wrangler.jsonc`. Before an approved release, verify the configured account with `npx wrangler whoami`, then run `npm run deploy` from the reviewed merge commit. The database is already populated: do not repeat its initial import for an ordinary update.
 
-**Importing data preserves public lists, not legacy edit access.** Rails sessions and Google authentication are not imported. The deployment guide requires an explicit owner-access decision before changing the production domain.
+**Imported lists are public and view-only.** Rails sessions and Google authentication were not imported. New lists use anonymous browser ownership. Cookies are host-only: a list created on workers.dev remains editable there with its existing cookie, but that cookie does not grant editing on the main domain.
 
-Follow [the migration and deployment guide](docs/DEPLOYMENT.md) for backup, rehearsal, account selection, provisioning, verification, and cutover. No production migration or deployment is implied by this source change.
+See [the deployment and recovery guide](docs/DEPLOYMENT.md) for the deployed version, domain routing, remote readback, verification status, backups, and archival recovery tools. The `www` canonical redirect uses a Cloudflare Single Redirect rule outside Wrangler, preserving the path and query string on the HTTPS apex domain.
 
 ## Scope
 
-This version includes anonymous ownership and ordinary list/gift editing. Google OAuth, email recovery, image uploads, and the future drag/resize image layout editor are not included. Image fields remain external URLs; no R2 bucket or email service is required. React provides the base for adding layout metadata and interactive image editing later.
+This version includes anonymous ownership, ordinary list/gift editing, and R2 image hosting with URL, file, and clipboard previews. Production deployment requires the R2 bucket and additive D1 migration described in the [image hosting plan](docs/IMAGE_HOSTING_PLAN.md). The capture UI is implemented; the plan also covers a separate legacy-image migration and later image discovery from product URLs. AI image discovery, Google OAuth, email recovery, and the future drag/resize image layout editor are not included yet.

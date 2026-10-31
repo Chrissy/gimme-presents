@@ -12,6 +12,8 @@ export interface Gift {
   name: string;
   url: string;
   image: string;
+  /** Hosted media path when copied to R2; otherwise the original image URL. */
+  imageUrl: string;
   priceCents: number | null;
   position: number;
 }
@@ -39,6 +41,8 @@ export interface LocalListsResponse {
 }
 
 export interface GiftInput {
+  /** Explicit removal also clears uploaded images, which have no source URL. */
+  removeImage?: boolean;
   name: string;
   url: string;
   image: string;

@@ -13,7 +13,9 @@ export interface ListRow {
 }
 
 const LIST_COLUMNS = 'id, name, slug, owner_id, revision, created_at, updated_at';
-const GIFT_COLUMNS = 'id, name, url, image, price_cents AS priceCents, position';
+const GIFT_COLUMNS = `id, name, url, image,
+  CASE WHEN image_key IS NULL THEN image ELSE '/media/' || image_key END AS imageUrl,
+  price_cents AS priceCents, position`;
 
 export function listSummary(row: ListRow): ListSummary {
   return {

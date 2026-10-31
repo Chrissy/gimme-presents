@@ -1,5 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from './auth';
+import { IMAGE_SIZE_ERROR, MAX_IMAGE_BYTES } from '../shared/image-limits';
 
 const MAX_BODY_BYTES = 16 * 1024;
 
@@ -7,45 +8,67 @@ export function badRequest(message: string): never {
   throw new HTTPException(400, { message });
 }
 
-/** Enforce the limit on streamed bytes too, not just the client-supplied length. */
-export async function jsonBody(c: AppContext): Promise<Record<string, unknown>> {
-  const contentType = c.req.header('Content-Type')?.split(';')[0]?.trim().toLowerCase();
-  if (contentType !== 'application/json') {
-    throw new HTTPException(415, { message: 'Send an application/json request.' });
-  }
-  if (Number(c.req.header('Content-Length') ?? 0) > MAX_BODY_BYTES) {
-    throw new HTTPException(413, { message: 'The request is too large.' });
+/** Bound actual streamed bytes before parsing JSON or multipart data. */
+async function bodyBytes(c: AppContext, limit: number, sizeError = 'The request is too large.'): Promise<Uint8Array<ArrayBuffer>> {
+  if (Number(c.req.header('Content-Length') ?? 0) > limit) {
+    throw new HTTPException(413, { message: sizeError });
   }
   const reader = c.req.raw.body?.getReader();
-  if (!reader) return badRequest('A JSON object is required.');
+  if (!reader) return badRequest('A request body is required.');
   const chunks: Uint8Array[] = [];
   let size = 0;
-  while (true) {
-    const { done, value } = await reader.read();
-    if (done) break;
-    size += value.byteLength;
-    if (size > MAX_BODY_BYTES) {
-      await reader.cancel();
-      throw new HTTPException(413, { message: 'The request is too large.' });
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      size += value.byteLength;
+      if (size > limit) throw new HTTPException(413, { message: sizeError });
+      chunks.push(value);
     }
-    chunks.push(value);
+  } finally {
+    await reader.cancel();
   }
   const bytes = new Uint8Array(size);
   let offset = 0;
-  for (const chunk of chunks) {
-    bytes.set(chunk, offset);
-    offset += chunk.byteLength;
-  }
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.byteLength; }
+  return bytes;
+}
+
+function jsonObject(text: string): Record<string, unknown> {
   let body: unknown;
-  try {
-    body = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
-  } catch {
-    return badRequest('A valid JSON object is required.');
-  }
-  if (!body || typeof body !== 'object' || Array.isArray(body)) {
-    return badRequest('A JSON object is required.');
-  }
+  try { body = JSON.parse(text); } catch { return badRequest('A valid JSON object is required.'); }
+  if (!body || typeof body !== 'object' || Array.isArray(body)) return badRequest('A JSON object is required.');
   return body as Record<string, unknown>;
+}
+
+export async function jsonBody(c: AppContext): Promise<Record<string, unknown>> {
+  if (c.req.header('Content-Type')?.split(';')[0]?.trim().toLowerCase() !== 'application/json') {
+    throw new HTTPException(415, { message: 'Send an application/json request.' });
+  }
+  const bytes = await bodyBytes(c, MAX_BODY_BYTES);
+  let text: string;
+  try { text = new TextDecoder('utf-8', { fatal: true }).decode(bytes); }
+  catch { return badRequest('A valid JSON object is required.'); }
+  return jsonObject(text);
+}
+
+export async function giftBody(c: AppContext): Promise<{ body: Record<string, unknown>; file?: File }> {
+  const contentType = c.req.header('Content-Type') ?? '';
+  if (contentType.split(';')[0].trim().toLowerCase() !== 'multipart/form-data') return { body: await jsonBody(c) };
+  // Allow bounded multipart framing in addition to the file and JSON metadata.
+  const bytes = await bodyBytes(c, MAX_IMAGE_BYTES + 2 * MAX_BODY_BYTES, IMAGE_SIZE_ERROR);
+  let form: FormData;
+  try { form = await new Response(bytes, { headers: { 'Content-Type': contentType } }).formData(); }
+  catch { return badRequest('A valid image upload is required.'); }
+  const metadata = form.get('gift');
+  const file = form.get('imageFile');
+  if (form.getAll('gift').length !== 1 || form.getAll('imageFile').length !== 1
+    || typeof metadata !== 'string' || !(file instanceof File)) return badRequest('Provide one gift and one image.');
+  if (new TextEncoder().encode(metadata).byteLength > MAX_BODY_BYTES) return badRequest('The gift details are too large.');
+  if (!file.size || file.size > MAX_IMAGE_BYTES) throw new HTTPException(413, { message: IMAGE_SIZE_ERROR });
+  const body = jsonObject(metadata);
+  if (body.image || body.removeImage) return badRequest('Choose one image source.');
+  return { body, file };
 }
 
 export function name(value: unknown, kind: 'list' | 'gift'): string {
@@ -102,10 +125,12 @@ function priceCents(value: unknown): number | null {
 }
 
 export function giftInput(body: Record<string, unknown>) {
+  if (body.removeImage !== undefined && typeof body.removeImage !== 'boolean') return badRequest('Invalid image removal.');
   return {
+    removeImage: body.removeImage === true,
     name: name(body.name, 'gift'),
     url: url(body.url, 'Gift link'),
-    image: url(body.image, 'Image link'),
+    image: body.removeImage === true ? '' : url(body.image, 'Image link'),
     priceCents: priceCents(body.price),
   };
 }

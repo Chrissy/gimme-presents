@@ -1,4 +1,13 @@
-import { expect, test, type Locator } from '@playwright/test';
+import type { Locator } from '@playwright/test';
+import { expect, test } from './fixtures';
+import { execFileSync } from 'node:child_process';
+import type { ListResponse } from '../../shared/api';
+
+function localWrangler(args: string[]) {
+  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args, '--config', 'wrangler.jsonc', '--persist-to', process.env.GIMME_LOCAL_STATE_DIR!], {
+    env: { ...process.env, WRANGLER_SEND_METRICS: 'false' }, stdio: 'pipe',
+  });
+}
 
 test('cookie-owned lists preserve the complete gift workflow and public sharing', async ({ page, browser }, testInfo) => {
   const activatePopoverLink = async (link: Locator) => {
@@ -32,10 +41,15 @@ test('cookie-owned lists preserve the complete gift workflow and public sharing'
 
   await add.getByLabel('Gift name', { exact: true }).fill('A cozy sweater');
   await add.getByLabel('Gift URL', { exact: true }).fill('https://example.com/sweater');
-  await add.getByLabel('Image URL', { exact: true }).fill('http://127.0.0.1:4173/test-gift.svg');
   await add.getByLabel('Price in dollars').fill('49.95');
   await add.getByRole('link', { name: 'create my gift!' }).click();
   await expect(page.getByRole('article', { name: 'A cozy sweater', exact: true })).toContainText('$49.95');
+  // Seed a pre-R2 image to verify legacy compatibility without letting the
+  // ingestion endpoint fetch localhost or relying on a live external retailer.
+  const saved = await (await page.request.get(`/api/lists/${new URL(listUrl).pathname.slice(1)}`)).json() as ListResponse;
+  localWrangler(['d1', 'execute', 'DB', '--local', '--command',
+    `UPDATE gifts SET image = 'http://127.0.0.1:4173/test-gift.svg' WHERE id = ${saved.gifts[0].id}`]);
+  await page.reload();
   await add.getByLabel('Gift name', { exact: true }).fill('More socks');
   await add.getByLabel('Price in dollars').fill('0');
   await add.getByRole('link', { name: 'create my gift!' }).click();
@@ -104,6 +118,37 @@ test('cookie-owned lists preserve the complete gift workflow and public sharing'
   await page.goto(listUrl);
   await expect(page.getByText('That list could not be found.')).toBeVisible();
   expect(errors).toEqual([]);
+});
+
+test('stored R2 images render for owners and public visitors without their original host', async ({ page, browser }, testInfo) => {
+  await page.goto('/');
+  await page.getByLabel('List name', { exact: true }).fill('Hosted photo');
+  await page.getByRole('link', { name: 'create my list!' }).click();
+  await page.getByLabel('Gift name', { exact: true }).fill('Hosted gift');
+  await page.getByRole('link', { name: 'create my gift!' }).click();
+  await expect(page.getByRole('article')).toHaveCount(1);
+  const listUrl = page.url();
+  const data = await (await page.request.get(`/api/lists/${new URL(listUrl).pathname.slice(1)}`)).json() as ListResponse;
+  const key = `${crypto.randomUUID()}.png`;
+  // URL ingestion and byte equality are tested in workerd API tests. Here use
+  // the real local R2 binding to prove browser delivery, never a mocked image route.
+  localWrangler(['r2', 'object', 'put', `gimme-presents-images-local/${key}`, '--local', '--file', 'public/edit.png', '--content-type', 'image/png']);
+  localWrangler(['d1', 'execute', 'DB', '--local', '--command',
+    `UPDATE gifts SET image = 'https://unavailable.invalid/photo.png', image_key = '${key}' WHERE id = ${data.gifts[0].id}`]);
+  await page.reload();
+  const photo = page.getByRole('img', { name: 'Hosted gift', exact: true });
+  await expect(photo).toHaveAttribute('src', `/media/${key}`);
+  await expect.poll(() => photo.evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(13);
+  const response = await page.request.get(`/media/${key}`);
+  expect(response.headers()['cache-control']).toContain('immutable');
+  expect(response.headers()['content-type']).toBe('image/png');
+  await page.screenshot({ path: testInfo.outputPath('hosted-image.png'), fullPage: true });
+  const publicContext = await browser.newContext({ viewport: testInfo.project.use.viewport });
+  const visitor = await publicContext.newPage();
+  await visitor.goto(listUrl);
+  await expect.poll(() => visitor.getByRole('img', { name: 'Hosted gift', exact: true })
+    .evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(13);
+  await publicContext.close();
 });
 
 test('conflicting tabs retain drafts until the user reloads and retries', async ({ page, context }) => {
