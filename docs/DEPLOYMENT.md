@@ -35,9 +35,9 @@ commit**. Requests to implement a feature or update a PR do not authorize a
 production release. New code discovered during release preparation must go
 through review and merge before requesting deployment of that new scope.
 
-Fetch `origin/master`, verify the intended PR is merged into it and CI passed,
+Fetch `origin/main`, verify the intended PR is merged into it and CI passed,
 and state the exact commit before touching production. Deploy a clean checkout
-at that commit with `npm run deploy`. Its source check fetches `origin/master`
+at that commit with `npm run deploy`. Its source check fetches `origin/main`
 again and refuses local edits, untracked files, and any other HEAD. Do not bypass
 it with direct Wrangler deploy commands or previously generated bundles. The
 check verifies source provenance; it cannot substitute for the user's approval.

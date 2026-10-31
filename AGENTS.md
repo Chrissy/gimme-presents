@@ -5,7 +5,7 @@ handle exhausted allowances gracefully.
 
 ## PR bases and stacked work
 
-- Base new PRs on freshly fetched `origin/master` by default. Obtain explicit
+- Base new PRs on freshly fetched `origin/main` by default. Obtain explicit
   agreement before creating a PR that targets another unmerged PR's branch.
 - Before starting stacked work, prominently identify the proposed base and the
   full dependency chain. Mentioning a stack in a long status update or footnote
@@ -15,26 +15,28 @@ handle exhausted allowances gracefully.
   description current as the scope changes. Do not present it as merely a
   deployment step.
 - When working with stacked PRs, end every final response with a prominent
-  **🔴 STACKED PRS — NOT YET IN MASTER** callout and a bulleted list of the full
+  **🔴 STACKED PRS — NOT YET IN MAIN** callout and a bulleted list of the full
   stack. Each bullet must include the PR link, open/merged status, and actual
   target branch or parent PR. This must be the final visible content, not buried
   in prose, a footnote, a collapsed section, or a long summary.
 - Always state where a PR was merged. A child merged into a parent branch is
-  still outside `master` until the parent lands. Do not describe that as merged
+  still outside `main` until the parent lands. Do not describe that as merged
   into main or ready to deploy from main.
 
 ## Production releases
 
+- Feature and fix PRs target `main` directly. Deploy the reviewed, merged commit
+  after an explicit deployment request; do not create separate deployment PRs.
 - Implement changes on a branch, test them, and open/update a PR for the user's
   review. Approval to write code, add safeguards, fix a bug, or create a PR is
   **not** approval to merge or deploy it.
 - The user reviews and merges PRs. Do not merge a PR unless the user explicitly
   asks you to merge that specific PR.
 - Deploy only after an explicit deployment request for the reviewed, merged
-  code. Fetch `origin/master` (this repository's main branch), verify the PR is
+  code. Fetch `origin/main`, verify the PR is
   merged into it and CI passed, and state the exact commit to be deployed.
 - The deploy checkout must be clean and HEAD must equal the freshly fetched
-  `origin/master`. Use `npm run deploy`, which checks these conditions before
+  `origin/main`. Use `npm run deploy`, which checks these conditions before
   building/uploading. Do not bypass the check with direct Wrangler commands,
   alternate branches, generated bundles, or API calls.
 - If new code is needed during deployment preparation, return it to a PR for
