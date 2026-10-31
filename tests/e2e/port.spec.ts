@@ -1,9 +1,10 @@
-import { expect, test, type Locator } from '@playwright/test';
+import type { Locator } from '@playwright/test';
+import { expect, test } from './fixtures';
 import { execFileSync } from 'node:child_process';
 import type { ListResponse } from '../../shared/api';
 
 function localWrangler(args: string[]) {
-  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args, '--config', 'wrangler.jsonc'], {
+  execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args, '--config', 'wrangler.jsonc', '--persist-to', process.env.GIMME_LOCAL_STATE_DIR!], {
     env: { ...process.env, WRANGLER_SEND_METRICS: 'false' }, stdio: 'pipe',
   });
 }

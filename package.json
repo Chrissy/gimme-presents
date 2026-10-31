@@ -13,12 +13,13 @@
     "preview": "vite preview --host 127.0.0.1",
     "typecheck": "tsc --noEmit",
     "types": "wrangler types --config wrangler.jsonc",
-    "test": "npm run test:api && npm run test:import",
+    "test": "npm run test:api && npm run test:import && npm run test:release",
     "test:api": "vitest run",
     "test:import": "node --test tests/import*.test.mjs",
+    "test:release": "node --test tests/release*.test.mjs",
     "test:e2e": "playwright test",
     "db:migrate:local": "wrangler d1 migrations apply DB --config wrangler.jsonc --local",
-    "deploy": "npm run build:production && wrangler deploy --env production"
+    "deploy": "node scripts/check-production-release.mjs && npm run build:production && wrangler deploy --env production"
   },
   "dependencies": {
     "hono": "^4.13.13",

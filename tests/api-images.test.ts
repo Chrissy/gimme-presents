@@ -139,9 +139,11 @@ describe('hosted gift images', () => {
       () => new Response(PNG, { headers: { 'Content-Length': String(MAX_IMAGE_BYTES + 1) } }),
       () => new Response(new ReadableStream({ start(controller) { controller.enqueue(new Uint8Array(MAX_IMAGE_BYTES + 1)); controller.close(); } }), { headers: { 'Content-Length': '1' } }),
     ];
-    for (const response of responses) {
+    for (const [index, response] of responses.entries()) {
       vi.mocked(fetch).mockImplementationOnce(async () => response());
-      expect((await request(user.path, 'POST', { ...gift, revision: 0 }, user.cookie)).status).toBe(422);
+      const result = await request(user.path, 'POST', { ...gift, revision: 0 }, user.cookie);
+      expect(result.status).toBe(422);
+      if (index >= 2) expect(await result.json()).toMatchObject({ error: expect.stringContaining('up to 2 MiB') });
     }
     vi.mocked(fetch).mockRejectedValueOnce(new Error('Network failed'));
     expect((await request(user.path, 'POST', { ...gift, revision: 0 }, user.cookie)).status).toBe(422);
@@ -187,6 +189,26 @@ describe('image file uploads', () => {
     expect(data.gifts[0].imageUrl).toBe('');
     expect(await env.DB.prepare('SELECT image_key FROM gifts').first('image_key')).toBeNull();
     expect(vi.mocked(fetch)).not.toHaveBeenCalled();
+  });
+
+  it('accepts exactly 2 MiB and explains larger files without changing the saved gift', async () => {
+    const user = await owner();
+    const bytes = new Uint8Array(2 * 1024 * 1024);
+    bytes.set(PNG);
+    const fields = { ...gift, image: '', revision: 0 };
+    const saved = await upload(user.path, 'POST', user.cookie, fields, bytes);
+    expect(saved.status).toBe(200);
+    const data = await saved.json<ListResponse>();
+    expect((await env.GIFT_IMAGES.list()).objects[0].size).toBe(bytes.length);
+    for (const extra of [1, 64 * 1024]) {
+      const larger = new Uint8Array(bytes.length + extra);
+      larger.set(PNG);
+      const response = await upload(user.path, 'POST', user.cookie, { ...fields, revision: 1 }, larger);
+      expect(response.status).toBe(413);
+      expect(await response.json()).toMatchObject({ error: expect.stringContaining('up to 2 MiB') });
+    }
+    expect(await (await request(`/api/lists/by-id/${user.data.list.id}`, 'GET', undefined, user.cookie)).json()).toEqual(data);
+    expect((await env.GIFT_IMAGES.list()).objects).toHaveLength(1);
   });
 
   it('rejects unauthorized, stale, invalid and oversized uploads without writing to R2', async () => {

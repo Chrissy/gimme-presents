@@ -6,6 +6,7 @@ import {
 } from './database';
 import { badRequest, giftBody, giftIds, giftInput, id, jsonBody, name, revision } from './validation';
 import { serveImage, storeImage, storeImageBytes } from './images';
+import { reserveListCreation } from './list-budget';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -56,6 +57,7 @@ app.get('/api/lists/:slugOrId', async c => {
 app.post('/api/lists', async c => {
   const body = await jsonBody(c);
   const listName = name(body.name, 'list');
+  await reserveListCreation(c.env.DB);
   const now = new Date().toISOString();
   const existingOwner = await currentOwner(c);
   const identity = existingOwner ? null : await newIdentity(c.env.DB, now);
@@ -99,8 +101,8 @@ app.post('/api/lists/:id/gifts', async c => {
   const { body, file } = await giftBody(c);
   const gift = giftInput(body);
   const { list, ownerId } = await ownedList(c, id(c.req.param('id')), revision(body.revision));
-  const imageKey = file ? await storeImageBytes(c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()))
-    : await storeImage(c.env.GIFT_IMAGES, gift.image);
+  const imageKey = file ? await storeImageBytes(c.env.DB, c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()))
+    : await storeImage(c.env.DB, c.env.GIFT_IMAGES, gift.image);
   const now = new Date().toISOString();
   return c.json(await mutateList(c.env.DB, list, ownerId, [
     c.env.DB.prepare(`
@@ -120,8 +122,8 @@ app.put('/api/lists/:id/gifts/:giftId', async c => {
   const previous = await c.env.DB.prepare('SELECT image, image_key FROM gifts WHERE id = ? AND list_id = ?')
     .bind(giftId, list.id).first<{ image: string; image_key: string | null }>();
   const unchangedImage = !file && !gift.removeImage && previous && (previous.image === body.image || previous.image === gift.image);
-  const imageKey = file ? await storeImageBytes(c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()))
-    : unchangedImage ? previous.image_key : await storeImage(c.env.GIFT_IMAGES, gift.image);
+  const imageKey = file ? await storeImageBytes(c.env.DB, c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()))
+    : unchangedImage ? previous.image_key : await storeImage(c.env.DB, c.env.GIFT_IMAGES, gift.image);
   if (unchangedImage) gift.image = previous.image;
   const now = new Date().toISOString();
   return c.json(await mutateList(c.env.DB, list, ownerId, [

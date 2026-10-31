@@ -14,7 +14,7 @@ npm run db:migrate:local
 npm run dev
 ```
 
-Open the address printed by Vite. Create a list, then add gifts with a name, product URL, and optional price. Use the small **+** button to upload an image or paste an image URL; pasting an image from the clipboard while focused in the gift form also adds it. Each choice shows a removable preview. Images are uploaded or copied into R2 (simulated locally) only when the gift is saved, then served from this app. Use a public PNG, JPEG, GIF, or WebP link of at most 5 MiB. Existing images remain external until migrated or replaced. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
+Open the address printed by Vite. Create a list, then add gifts with a name, product URL, and optional price. Use the small **+** button to upload an image or paste an image URL; pasting an image from the clipboard while focused in the gift form also adds it. Each choice shows a removable preview. Images are uploaded or copied into R2 (simulated locally) only when the gift is saved, then served from this app. Choose a PNG, JPEG, GIF, or WebP image of at most 2 MiB; larger files show a size-limit error. Existing images remain external until migrated or replaced. Lists are public at their share URL. The browser that creates a list can rename it, edit/delete/reorder gifts, and delete the list.
 
 The local-only `/local/all-lists` page is a plain index of every list, newest first, with creation dates and gift counts. Its API returns 404 in production. To inspect an imported database separately from your ordinary development data, run `GIMME_LOCAL_STATE_DIR=/path/to/rehearsal-state npm run dev`, using the same directory as Wrangler's `--persist-to` argument. See the [local restore report](docs/LOCAL_RESTORE.md) for the supplied August 2026 snapshot.
 
@@ -32,7 +32,7 @@ npm run build
 
 ## Existing Rails data and deployment
 
-Production runs in the personal Cloudflare account using the repository's saved `pp-diaper` Wrangler profile. Its account and D1 IDs are pinned in `wrangler.jsonc`. To update the deployed app, confirm the personal account with `npx wrangler whoami`, then run `npm run deploy`. The database is already populated: do not repeat its initial import for an ordinary update.
+Production account and D1 bindings are configured in `wrangler.jsonc`. Before an approved release, verify the configured account with `npx wrangler whoami`, then run `npm run deploy` from the reviewed merge commit. The database is already populated: do not repeat its initial import for an ordinary update.
 
 **Imported lists are public and view-only.** Rails sessions and Google authentication were not imported. New lists use anonymous browser ownership. Cookies are host-only: a list created on workers.dev remains editable there with its existing cookie, but that cookie does not grant editing on the main domain.
 
