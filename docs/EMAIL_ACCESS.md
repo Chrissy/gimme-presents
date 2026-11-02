@@ -117,3 +117,32 @@ Imported records with no email mapping remain public and require a separate
 trusted mapping for recovery. A public URL or list name does not grant ownership.
 AI features are not enabled by this work; future metered operations must reserve
 owner and global allowances before calling a provider.
+
+## Interface
+
+```mermaid
+flowchart TD
+  Name[Name your list] --> Session{Verified session?}
+  Session -->|Yes| Create[Create list]
+  Session -->|No| Email[Enter email]
+  Email --> Waiting[Check your email]
+  Waiting --> Link[Open email link]
+  Link --> Confirm[Continue as email]
+  Confirm --> Create
+  Create --> Editor[Edit list]
+  Recovery[Recover access] --> Email
+```
+
+The list-name screen keeps the existing appearance. Verification adds an email
+step, a waiting state with resend/address correction, and an explicit confirmation
+page. A link opened on another device grants access only on that device. The
+original tab does not poll. There is no account dashboard or list-history screen;
+recovery returns to the requested owned list or the most recently updated list.
+The home page offers recovery and an explicit option to switch email identities.
+Daily-limit feedback formats the reset time using the browser's local timezone.
+Email pages use `/auth/access` and `/auth/recover` so existing single-segment
+public list URLs remain available, including lists named `access` or `recover`.
+
+Address correction invalidates the earlier pending proof. Opening a different
+link in the same tab resets confirmation state. Failed requests preserve entered
+fields, and expired or used links offer a route to request fresh access.

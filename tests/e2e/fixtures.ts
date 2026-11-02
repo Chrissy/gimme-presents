@@ -4,6 +4,7 @@ import { test as base, expect } from '@playwright/test';
 export const test = base.extend<{ signedIn: boolean; accessSetup: void }>({
   signedIn: [true, { option: true }],
   accessSetup: [async ({ page, signedIn }, use) => {
+    resetLocalAllowances();
     if (signedIn) {
       const email = `${crypto.randomUUID()}@example.com`;
       const headers = { Origin: 'http://127.0.0.1:4173', 'X-Requested-With': 'gimme-presents' };
@@ -18,14 +19,14 @@ export const test = base.extend<{ signedIn: boolean; accessSetup: void }>({
   }, { auto: true }],
 });
 
-// Each file/project gets a fresh daily allowance in the local simulated DB.
+// Each test gets a fresh daily allowance in the local simulated DB.
 // Keep quota enforcement active; tests must not depend on earlier local runs.
-test.beforeAll(() => {
+function resetLocalAllowances() {
   execFileSync(process.execPath, [
     'node_modules/wrangler/bin/wrangler.js', 'd1', 'execute', 'DB', '--local', '--config', 'wrangler.jsonc',
     '--persist-to', process.env.GIMME_LOCAL_STATE_DIR!,
     '--command', "DELETE FROM email_rate; UPDATE list_creation_budget SET day = '', attempts = 0; UPDATE image_budget SET upload_day = '', uploads = 0, upload_bytes = 0, read_day = '', reads = 0;",
   ], { stdio: 'pipe' });
-});
+}
 
 export { expect };
