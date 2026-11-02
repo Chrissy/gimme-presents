@@ -40,7 +40,7 @@ Review the agent behavior and budget separately after the manual capture workflo
 
 ## First deployment
 
-The hosting work from PR #26 was merged into the production configuration branch in PR #25. That prerequisite must land on `master` before the image capture PR can target it with only the UI/upload changes. No production bucket, migration, backfill or deployment is performed merely by opening a PR.
+Image hosting requires the configured R2 bucket and additive D1 migrations before deployment. Changes must be reviewed and merged into `main`, followed by an explicit deployment request. Opening a PR does not create production resources, apply migrations, or deploy the app.
 
 Verify that Wrangler is authenticated to the production account configured in `wrangler.jsonc` before any remote operation. Commands below are operator steps for a reviewed, approved release:
 

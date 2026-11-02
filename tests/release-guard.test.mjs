@@ -12,16 +12,16 @@ function repository(t) {
   const origin = join(root, 'origin.git');
   const cwd = join(root, 'checkout');
   const git = (...args) => execFileSync('git', args, { cwd, encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] }).trim();
-  execFileSync('git', ['init', '--bare', '--initial-branch=master', origin], { stdio: 'pipe' });
+  execFileSync('git', ['init', '--bare', '--initial-branch=main', origin], { stdio: 'pipe' });
   execFileSync('git', ['clone', origin, cwd], { stdio: 'pipe' });
   git('config', 'user.name', 'Release guard test');
   git('config', 'user.email', 'test@example.invalid');
   writeFileSync(join(cwd, 'app.txt'), 'reviewed code');
-  git('add', 'app.txt'); git('commit', '-m', 'Reviewed release'); git('push', 'origin', 'master');
+  git('add', 'app.txt'); git('commit', '-m', 'Reviewed release'); git('push', 'origin', 'main');
   return { cwd, git };
 }
 
-test('accepts a clean checkout at the exact fetched master commit', t => {
+test('accepts a clean checkout at the exact fetched main commit', t => {
   const { cwd, git } = repository(t);
   git('checkout', '--detach');
   assert.equal(checkProductionRelease(cwd), git('rev-parse', 'HEAD'));
@@ -32,7 +32,7 @@ test('rejects an unmerged feature commit', t => {
   git('checkout', '-b', 'codex/unreviewed');
   writeFileSync(join(cwd, 'app.txt'), 'unreviewed code');
   git('commit', '-am', 'New feature');
-  assert.throws(() => checkProductionRelease(cwd), /not latest origin\/master/);
+  assert.throws(() => checkProductionRelease(cwd), /not latest origin\/main/);
 });
 
 test('rejects tracked local edits', t => {
@@ -47,14 +47,14 @@ test('rejects untracked application code', t => {
   assert.throws(() => checkProductionRelease(cwd), /commit or remove local changes/);
 });
 
-test('refreshes master and rejects an older released commit', t => {
+test('refreshes main and rejects an older released commit', t => {
   const { cwd, git } = repository(t);
   const previous = git('rev-parse', 'HEAD');
   writeFileSync(join(cwd, 'app.txt'), 'new reviewed release');
-  git('commit', '-am', 'Next release'); git('push', 'origin', 'master');
+  git('commit', '-am', 'Next release'); git('push', 'origin', 'main');
   git('checkout', '--detach', previous);
-  git('update-ref', 'refs/remotes/origin/master', previous);
-  assert.throws(() => checkProductionRelease(cwd), /not latest origin\/master/);
+  git('update-ref', 'refs/remotes/origin/main', previous);
+  assert.throws(() => checkProductionRelease(cwd), /not latest origin\/main/);
 });
 
 test('fails closed when the remote cannot be checked', t => {

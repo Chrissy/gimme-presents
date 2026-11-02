@@ -90,9 +90,8 @@ expired records.
 
 ## Release setup
 
-1. Review and merge the complete feature stack into `main`. Resolve the existing
-   default-branch release-check update before deploying: `npm run deploy` must
-   compare HEAD with freshly fetched `origin/main`.
+1. Review and merge the complete feature stack into `main`. The `npm run deploy`
+   source check requires a clean checkout at freshly fetched `origin/main`.
 2. Verify the sender domain, SPF/DKIM and DMARC in Resend. Keep tracking disabled.
 3. Add a Resend webhook for `email.bounced` and `email.complained` targeting
    `https://gimmesomefreakingpresents.com/api/email/events`. Save its signing secret.
