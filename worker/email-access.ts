@@ -40,9 +40,9 @@ export async function requestAccess(c: AppContext): Promise<Response> {
       await quotaBatch(c.env.DB, [...rate(c.env.DB, `recipient:minute:${recipient}`, 60, 1, now),
         ...rate(c.env.DB, `recipient:hour:${recipient}`, 3600, 3, now),
         ...rate(c.env.DB, `recipient:day:${recipient}`, 86400, 10, now)], 'Please wait before requesting another email.');
-      // A resend is a new provider event with the same proof and list intent.
-      // Sent jobs have erased their encrypted proof, so issue a fresh proof below.
-    } else {
+      // A resend keeps the list intent but issues a fresh proof below.
+      // Sent jobs have already erased their encrypted payload.
+    } else if (body.replace !== true) {
       await deliver(c.env, previous.id);
       return requestStatus(c, previous.id);
     }

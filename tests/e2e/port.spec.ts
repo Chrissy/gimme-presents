@@ -174,7 +174,7 @@ test('conflicting tabs retain drafts until the user reloads and retries', async 
   await second.close();
 });
 
-test('simultaneous first lists in two tabs keep the same browser owner', async ({ page, context }) => {
+test('simultaneous lists in two tabs keep the same verified browser owner', async ({ page, context }) => {
   const second = await context.newPage();
   await Promise.all([page.goto('/'), second.goto('/')]);
   await page.getByLabel('List name', { exact: true }).fill('First tab Christmas');
@@ -183,7 +183,7 @@ test('simultaneous first lists in two tabs keep the same browser owner', async (
   await context.route('**/api/lists', async route => {
     if (firstRequest && route.request().method() === 'POST') {
       firstRequest = false;
-      // Model a slow first response: a second cookie-less POST would create a competing owner.
+      // Delay one response while both tabs create lists using the verified cookie.
       await new Promise(resolve => setTimeout(resolve, 150));
     }
     await route.continue();

@@ -40,5 +40,7 @@ export function write<T>(path: string, method: string, body: unknown): Promise<T
 }
 
 export function errorMessage(error: unknown): string {
-  return error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+  const message = error instanceof Error ? error.message : 'Something went wrong. Please try again.';
+  const reset = new Date(); reset.setUTCHours(24, 0, 0, 0);
+  return message.replace('midnight UTC', reset.toLocaleString(undefined, { weekday: 'short', hour: 'numeric', minute: '2-digit', timeZoneName: 'short' }));
 }
