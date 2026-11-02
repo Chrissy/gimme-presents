@@ -1,6 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 
-export const MAX_DAILY_NEW_LISTS = 10;
+export const MAX_DAILY_NEW_LISTS = 30;
 
 /** Reserve before creating an anonymous owner, session, or list. */
 export async function reserveListCreation(db: D1Database): Promise<void> {
