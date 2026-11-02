@@ -10,11 +10,11 @@ export function checkProductionRelease(cwd = process.cwd()) {
     throw new Error('Production deploy blocked: commit or remove local changes first, then deploy the reviewed merge commit.');
   }
   // Fetch the explicit branch into its tracking ref; stale refs must not pass.
-  git('fetch', 'origin', '+refs/heads/master:refs/remotes/origin/master');
+  git('fetch', 'origin', '+refs/heads/main:refs/remotes/origin/main');
   const head = git('rev-parse', 'HEAD');
-  const main = git('rev-parse', 'refs/remotes/origin/master');
+  const main = git('rev-parse', 'refs/remotes/origin/main');
   if (head !== main) {
-    throw new Error(`Production deploy blocked: HEAD ${head} is not latest origin/master ${main}. Deploy only the reviewed, merged commit after user approval.`);
+    throw new Error(`Production deploy blocked: HEAD ${head} is not latest origin/main ${main}. Deploy only the reviewed, merged commit after user approval.`);
   }
   return head;
 }

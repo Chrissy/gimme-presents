@@ -1,5 +1,6 @@
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from './auth';
+import { reserveOwnerImage } from './owner-budget';
 import { reserveImageRead, reserveImageUpload } from './image-budget';
 import { IMAGE_SIZE_ERROR, MAX_IMAGE_BYTES } from '../shared/image-limits';
 
@@ -94,20 +95,22 @@ async function downloadImage(source: string): Promise<Uint8Array<ArrayBuffer>> {
 }
 
 /** Call only after ownership and revision checks. Empty sources need no object. */
-export async function storeImage(db: D1Database, bucket: R2Bucket, source: string): Promise<string | null> {
+export async function storeImage(db: D1Database, bucket: R2Bucket, source: string, ownerId?: string): Promise<string | null> {
   if (!source) return null;
   publicImageUrl(source);
   // Reserve the largest possible download before fetching. Failed downloads
   // still consume a daily attempt; unused capacity stays reserved conservatively.
-  await reserveImageUpload(db, MAX_IMAGE_BYTES);
+  if (ownerId) await reserveOwnerImage(db, ownerId, MAX_IMAGE_BYTES);
+  else await reserveImageUpload(db, MAX_IMAGE_BYTES);
   const bytes = await downloadImage(source);
   return putImage(bucket, bytes);
 }
 
-export async function storeImageBytes(db: D1Database, bucket: R2Bucket, bytes: Uint8Array<ArrayBuffer>): Promise<string> {
+export async function storeImageBytes(db: D1Database, bucket: R2Bucket, bytes: Uint8Array<ArrayBuffer>, ownerId?: string): Promise<string> {
   if (!bytes.byteLength || bytes.byteLength > MAX_IMAGE_BYTES) return invalidImage(IMAGE_SIZE_ERROR);
   imageType(bytes);
-  await reserveImageUpload(db, bytes.byteLength);
+  if (ownerId) await reserveOwnerImage(db, ownerId, bytes.byteLength);
+  else await reserveImageUpload(db, bytes.byteLength);
   return putImage(bucket, bytes);
 }
 

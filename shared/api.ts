@@ -25,6 +25,9 @@ export interface ListResponse {
 }
 
 export interface MeResponse {
+  verified: boolean;
+  email: string | null;
+  canClaim: boolean;
   lists: ListSummary[];
 }
 

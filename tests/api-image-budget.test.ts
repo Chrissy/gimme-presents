@@ -1,3 +1,4 @@
+import { verifiedCookie } from './verified-fixture';
 import { env, exports as worker } from 'cloudflare:workers';
 import { afterEach, expect, it, vi } from 'vitest';
 import type { ListResponse } from '../shared/api';
@@ -9,7 +10,7 @@ const PNG = Uint8Array.from(atob('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAA
 const day = () => new Date().toISOString().slice(0, 10);
 async function owner() {
   const response = await worker.default.fetch(`${ORIGIN}/api/lists`, {
-    method: 'POST', headers: { Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', 'Content-Type': 'application/json' },
+    method: 'POST', headers: { Cookie: await verifiedCookie(), Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', 'Content-Type': 'application/json' },
     body: JSON.stringify({ name: 'Budget test' }),
   });
   const data = await response.json<ListResponse>();

@@ -1,3 +1,4 @@
+import { verifiedCookie } from './verified-fixture';
 import { env, exports as worker } from 'cloudflare:workers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ListResponse } from '../shared/api';
@@ -15,7 +16,7 @@ function request(path: string, method = 'GET', body?: object, cookie = '') {
   });
 }
 async function owner() {
-  const response = await request('/api/lists', 'POST', { name: 'Images' });
+  const response = await request('/api/lists', 'POST', { name: 'Images' }, await verifiedCookie());
   const data = await response.json<ListResponse>();
   return { data, cookie: response.headers.get('Set-Cookie')!.split(';')[0], path: `/api/lists/${data.list.id}/gifts` };
 }

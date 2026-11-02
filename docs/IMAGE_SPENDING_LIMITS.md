@@ -6,40 +6,43 @@ limits. Provider budget alerts are informational and do not enforce these limits
 ## Enforced application limits
 
 - Each image is at most 2 MiB; oversized files show a clear error in the form.
-- At most 100 image upload attempts per UTC day, shared by all owners and lists.
-- At most 250,000,000 reserved upload bytes (250 MB) per UTC day.
+- At most 300 image upload attempts per UTC day, shared by all owners and lists.
+- At most 750,000,000 reserved upload bytes (750 MB) per UTC day.
 - At most 5,000,000,000 reserved bytes for this bucket, across its lifetime.
-- At most 1,000 R2 image reads per UTC day, shared by all visitors and hostnames.
-- At most 10 new lists per UTC day, before creating anonymous owners/sessions.
+- At most 10,000 R2 image reads per UTC day, shared by all visitors and hostnames.
+- At most 30 new lists per UTC day, created only after email verification.
+- Per owner: 10 new lists, 50 image attempts, and 125 MB reserved uploads/day,
+  plus 500 MB lifetime reserved image capacity.
+- At most 100 lists per owner and 200 gifts per list. Existing content is retained.
 
 Atomic D1 updates reserve allowance **before** URL downloads or R2 operations.
 Concurrent requests cannot overshoot the counters. Database errors, missing
 budget state, and exhausted limits stop the operation. Gifts without a new
 image and ordinary edits do not consume upload allowance. New-list exhaustion
 does not block reading or editing existing lists. These counters bound image
-operations and new lists, not every gift edit or API request.
+operations and new lists; email requests have separate allowances. Owner and
+global reservations commit together before an external operation.
 
 Local/clipboard uploads reserve their actual byte size. URL imports reserve the
 full 2 MiB maximum against both daily bytes and lifetime capacity before
-downloading. Even 100 maximum-size images reserve only 209,715,200 bytes, below
-the 250 MB daily allowance. The retained lifetime-storage cap still takes
+downloading. Even 300 maximum-size images reserve only 629,145,600 bytes, below
+the 750 MB daily allowance. The retained lifetime-storage cap still takes
 precedence if capacity has filled over time.
 Reservations are never automatically
 refunded: failed downloads, uncertain R2 writes, stale list saves, replacements,
 and deletions all retain their reservation. This deliberately overestimates
 storage and can pause uploads before the bucket reaches 5 GB. Only daily counts
 reset at midnight UTC; daily upload bytes reset too. Lifetime reserved capacity
-does not reset. The 250 MB daily cap was chosen below 10 GB divided by 32 days
-(312.5 MB), leaving room for billing periods crossing UTC-day boundaries.
+does not reset.
 
 Every valid-shaped `/media/:key` request reserves a read, including HEAD,
 conditional GET, nonexistent objects, and URLs with cache-busting query strings.
 Daily exhaustion returns 429 without another R2 call. Existing browser-cached
 images can still display. Budget failures are never cached.
 
-At these limits, app traffic can perform at most 3,200 R2 writes and 32,000 R2
+At these limits, app traffic can perform at most 9,600 R2 writes and 320,000 R2
 reads across 32 UTC dates, and reserve no more than 5 GB in total. Daily byte
-reservations also cannot exceed 8 GB across those dates, but the lifetime cap
+reservations also cannot exceed 24 GB across those dates, but the lifetime cap
 always takes precedence. Storage is not a monthly upload allowance: R2 bills
 retained data in GB-months, so dividing 10 GB by the number of days alone would
 not bound costs in later months. The 5 GB lifetime reservation cap does.
@@ -97,7 +100,8 @@ storage; deleting references or disabling reads does not delete those objects.
 
 These controls bound this app's R2 activity independently of provider billing
 alerts. Account-wide usage also includes other applications and direct bucket
-operations. No image transformation service, queue, or Durable Object is needed.
+operations. No image transformation service or Durable Object is needed. Email delivery uses
+a small D1 outbox described in [email access](EMAIL_ACCESS.md).
 
 Sources: [R2 pricing](https://developers.cloudflare.com/r2/pricing/),
 [Workers limits](https://developers.cloudflare.com/workers/platform/limits/),
