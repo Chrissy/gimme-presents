@@ -2,7 +2,8 @@ import { HTTPException } from 'hono/http-exception';
 import { anonymousSession, setSessionCookie, type AppContext } from './auth';
 import { badRequest, jsonBody, name } from './validation';
 import { encrypt, decrypt, hash, localMail, randomToken } from './email-crypto';
-import { rate, deliver, type MailPayload } from './email-delivery';
+import { rate, deliver } from './email-delivery';
+import { renderAccessEmail, type MailPayload } from './email-template';
 import { assertChanged, listReservations, quotaBatch } from './owner-budget';
 
 interface AccessRequest {
@@ -22,7 +23,6 @@ function localHost(c: AppContext) { return ['localhost', '127.0.0.1', '[::1]'].i
 function appOrigin(c: AppContext): string {
   return localMail(c.env) && localHost(c) ? new URL(c.req.url).origin : c.env.APP_ORIGIN;
 }
-function escape(s: string): string { return s.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!)); }
 
 export async function requestAccess(c: AppContext): Promise<Response> {
   const body = await jsonBody(c); const email = normalizeEmail(body.email);
@@ -54,14 +54,13 @@ export async function requestAccess(c: AppContext): Promise<Response> {
   if (body.claim === true && !anonymous) return badRequest('Open this request in the browser that can edit your existing lists.');
   const token = randomToken(); const id = crypto.randomUUID();
   const slug = listName ? `${listName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 70) || 'list'}-${id.replace(/-/g, '').slice(0, 12)}` : null;
-  const link = `${appOrigin(c)}/auth/access#token=${token}`;
-  const recovery = `${appOrigin(c)}/auth/recover`;
-  const subject = listName ? 'Continue to your GimmePresents list' : 'Restore your GimmePresents access';
-  const intro = listName ? `Continue to create “${listName}”.` : 'Continue to restore editing access to your lists.';
-  const payload: MailPayload = { from: c.env.EMAIL_FROM, to: email, subject,
-    text: `${intro}\n\n${link}\n\nThis link expires in 30 minutes. Get a fresh link any time: ${recovery}\n\nIf you did not request this email, you can ignore it.`,
-    html: `<p>${escape(intro)}</p><p><a href="${escape(link)}">Continue to GimmePresents</a></p><p>This link expires in 30 minutes. <a href="${escape(recovery)}">Get a fresh link</a> any time.</p><p>If you did not request this email, you can ignore it.</p>`,
-  };
+  const payload = renderAccessEmail({
+    from: c.env.EMAIL_FROM,
+    to: email,
+    listName,
+    accessUrl: `${appOrigin(c)}/auth/access#token=${token}`,
+    recoveryUrl: `${appOrigin(c)}/auth/recover`,
+  });
   const recipient = await hash(email);
   const ip = await hash(`${c.env.EMAIL_ENCRYPTION_KEY || 'local'}:${c.req.header('CF-Connecting-IP') || 'unknown'}`);
   const statements: D1PreparedStatement[] = [
