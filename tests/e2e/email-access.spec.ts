@@ -98,7 +98,7 @@ test('correcting an email invalidates the earlier link and preserves the list na
 });
 
 test('recovery and request errors remain usable without losing entered fields', async ({ page }, info) => {
-  await page.goto('/recover');
+  await page.goto('/auth/recover');
   await page.getByLabel('Your email').fill('retry@example.com');
   await page.route('**/api/auth/request', route => route.fulfill({ status: 429, contentType: 'application/json', body: JSON.stringify({ error: 'Please wait before requesting another email.' }) }));
   await page.getByRole('button', { name: 'Email me a link' }).click();
@@ -106,7 +106,7 @@ test('recovery and request errors remain usable without losing entered fields', 
   await expect(page.getByLabel('Your email')).toHaveValue('retry@example.com');
   await expect(page.getByRole('button', { name: 'Email me a link' })).toBeEnabled();
   await page.screenshot({ path: info.outputPath('recovery-error.png'), fullPage: true });
-  await page.goto('/access#token=bad');
+  await page.goto('/auth/access#token=bad');
   await expect(page.getByRole('alert')).toContainText('invalid or expired');
   await expect(page.getByRole('link', { name: 'Get a fresh access link' })).toBeVisible();
   await page.screenshot({ path: info.outputPath('expired-link.png'), fullPage: true });

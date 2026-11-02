@@ -110,7 +110,7 @@ function ConfirmLink({ token }: { token: string }) {
         <p className="email-hint">You’ll be able to edit your lists in this browser.</p>
       </form> : !error && <p role="status">Checking your link…</p>}
       {error && <div className="form-notice" role="alert"><p>{error}</p></div>}
-      <p><Link to="/recover">Get a fresh access link</Link></p>
+      <p><Link to="/auth/recover">Get a fresh access link</Link></p>
     </section>
   </main>;
 }
@@ -122,7 +122,7 @@ export function ExistingAccessNotice({ listId, canEdit }: { listId: number; canE
     request<MeResponse>('/api/me', { signal: controller.signal }).then(setMe).catch(() => {});
     return () => controller.abort();
   }, []);
-  if (!canEdit) return <p className="access-footer"><Link to={`/recover?list=${listId}`}>Is this your list? Restore editing access</Link></p>;
+  if (!canEdit) return <p className="access-footer"><Link to={`/auth/recover?list=${listId}`}>Is this your list? Restore editing access</Link></p>;
   if (!me || me.verified) return null;
-  return <p className="access-footer">Keep editing here, or <Link to={`/recover?claim=1&list=${listId}`}>save your lists to your email</Link> to recover access and add images.</p>;
+  return <p className="access-footer">Keep editing here, or <Link to={`/auth/recover?claim=1&list=${listId}`}>save your lists to your email</Link> to recover access and add images.</p>;
 }

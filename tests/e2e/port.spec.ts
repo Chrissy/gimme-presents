@@ -9,6 +9,26 @@ function localWrangler(args: string[]) {
   });
 }
 
+test('email routes preserve legacy public slugs', async ({ page }) => {
+  const response = await page.request.post('/api/lists', {
+    headers: { Origin: 'http://127.0.0.1:4173', 'X-Requested-With': 'gimme-presents' },
+    data: { name: 'Existing list' },
+  });
+  expect(response.status()).toBe(201);
+  const data = await response.json() as ListResponse;
+  try {
+    for (const slug of ['access', 'recover']) {
+      localWrangler(['d1', 'execute', 'DB', '--local', '--command',
+        `UPDATE lists SET slug = '${slug}' WHERE id = ${data.list.id}`]);
+      await page.goto(`/${slug}`);
+      await expect(page.getByRole('heading', { level: 1 })).toHaveAccessibleName(/^Existing list/);
+    }
+  } finally {
+    localWrangler(['d1', 'execute', 'DB', '--local', '--command',
+      `UPDATE lists SET slug = 'route-test-${data.list.id}' WHERE id = ${data.list.id}`]);
+  }
+});
+
 test('cookie-owned lists preserve the complete gift workflow and public sharing', async ({ page, browser }, testInfo) => {
   const activatePopoverLink = async (link: Locator) => {
     // The original fixed-width popover overflows narrow screens; retain that layout.

@@ -74,8 +74,8 @@ function HomePage() {
       </form>
       <p className="access-footer">{me?.verified ? <>Creating lists as {me.email}.{' '}
         <button className="text-button" disabled={busy} onClick={() => void changeEmail()}>Use another email</button>
-      </> : <Link to="/recover">Already have a list? Recover access</Link>}</p>
-      {me?.canClaim && <p className="access-footer"><Link to="/recover?claim=1">Save this browser’s lists to your email</Link></p>}
+      </> : <Link to="/auth/recover">Already have a list? Recover access</Link>}</p>
+      {me?.canClaim && <p className="access-footer"><Link to="/auth/recover?claim=1">Save this browser’s lists to your email</Link></p>}
     </>}
   </main>;
 }
@@ -357,8 +357,8 @@ function RoutedList({ editTitle = false }: { editTitle?: boolean }) {
 export function App() {
   return <Routes>
     <Route path="/" element={<HomePage />} />
-    <Route path="/recover" element={<RecoveryPage />} />
-    <Route path="/access" element={<ConfirmationPage />} />
+    <Route path="/auth/recover" element={<RecoveryPage />} />
+    <Route path="/auth/access" element={<ConfirmationPage />} />
     <Route path="/local/all-lists" element={<AllListsPage />} />
     <Route path="/edit/:id" element={<RoutedList editTitle />} />
     <Route path="/:slug" element={<RoutedList />} />

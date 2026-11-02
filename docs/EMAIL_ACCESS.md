@@ -140,6 +140,8 @@ original tab does not poll. There is no account dashboard or list-history screen
 recovery returns to the requested owned list or the most recently updated list.
 The home page offers recovery and an explicit option to switch email identities.
 Daily-limit feedback formats the reset time using the browser's local timezone.
+Email pages use `/auth/access` and `/auth/recover` so existing single-segment
+public list URLs remain available, including lists named `access` or `recover`.
 
 Address correction invalidates the earlier pending proof. Opening a different
 link in the same tab resets confirmation state. Failed requests preserve entered

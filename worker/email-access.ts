@@ -54,8 +54,8 @@ export async function requestAccess(c: AppContext): Promise<Response> {
   if (body.claim === true && !anonymous) return badRequest('Open this request in the browser that can edit your existing lists.');
   const token = randomToken(); const id = crypto.randomUUID();
   const slug = listName ? `${listName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 70) || 'list'}-${id.replace(/-/g, '').slice(0, 12)}` : null;
-  const link = `${appOrigin(c)}/access#token=${token}`;
-  const recovery = `${appOrigin(c)}/recover`;
+  const link = `${appOrigin(c)}/auth/access#token=${token}`;
+  const recovery = `${appOrigin(c)}/auth/recover`;
   const subject = listName ? 'Continue to your GimmePresents list' : 'Restore your GimmePresents access';
   const intro = listName ? `Continue to create “${listName}”.` : 'Continue to restore editing access to your lists.';
   const payload: MailPayload = { from: c.env.EMAIL_FROM, to: email, subject,
