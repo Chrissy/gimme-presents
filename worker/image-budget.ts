@@ -1,9 +1,9 @@
 import { HTTPException } from 'hono/http-exception';
 
 export const MAX_STORED_IMAGE_BYTES = 5_000_000_000;
-export const MAX_DAILY_UPLOADS = 100;
-export const MAX_DAILY_UPLOAD_BYTES = 250_000_000;
-export const MAX_DAILY_IMAGE_READS = 1_000;
+export const MAX_DAILY_UPLOADS = 300;
+export const MAX_DAILY_UPLOAD_BYTES = 750_000_000;
+export const MAX_DAILY_IMAGE_READS = 10_000;
 
 /** One atomic conditional update serializes reservations across requests/isolates.
  * Missing tables/rows and database failures must prevent the R2 operation.

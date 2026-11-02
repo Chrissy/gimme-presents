@@ -1,21 +1,22 @@
+import { verifiedCookie } from './verified-fixture';
 import { env, exports as worker } from 'cloudflare:workers';
 import { expect, it } from 'vitest';
 import type { ListResponse } from '../shared/api';
 import { MAX_DAILY_NEW_LISTS } from '../worker/list-budget';
 
 const ORIGIN = 'https://gimme.test';
-function create(name = 'Gift list') {
+async function create(name = 'Gift list') {
   return worker.default.fetch(`${ORIGIN}/api/lists`, {
-    method: 'POST', headers: { Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', 'Content-Type': 'application/json' },
+    method: 'POST', headers: { Cookie: await verifiedCookie(), Origin: ORIGIN, 'X-Requested-With': 'gimme-presents', 'Content-Type': 'application/json' },
     body: JSON.stringify({ name }),
   });
 }
 
-it('caps concurrent list creation before creating extra anonymous owners or sessions', async () => {
+it('caps concurrent list creation without creating extra lists', async () => {
   const responses = await Promise.all(Array.from({ length: MAX_DAILY_NEW_LISTS + 6 }, () => create()));
   expect(responses.filter(response => response.status === 201)).toHaveLength(MAX_DAILY_NEW_LISTS);
   expect(responses.filter(response => response.status === 429)).toHaveLength(6);
-  for (const table of ['lists', 'owners', 'sessions']) {
+  for (const table of ['lists']) {
     expect(await env.DB.prepare(`SELECT COUNT(*) AS count FROM ${table}`).first('count')).toBe(MAX_DAILY_NEW_LISTS);
   }
   const saved = responses.find(response => response.status === 201)!;
@@ -42,5 +43,5 @@ it('does not consume list allowance for invalid names and fails closed without i
   expect(await env.DB.prepare('SELECT attempts FROM list_creation_budget').first('attempts')).toBe(0);
   await env.DB.prepare('DELETE FROM list_creation_budget').run();
   expect((await create()).status).toBe(429);
-  expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM owners').first('count')).toBe(0);
+  expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM lists').first('count')).toBe(0);
 });
