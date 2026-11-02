@@ -4,8 +4,8 @@ import { assertChanged, quotaBatch } from './owner-budget';
 import { decrypt, localMail } from './email-crypto';
 import type { AppContext } from './auth';
 import { bodyBytes } from './validation';
+import type { MailPayload } from './email-template';
 
-export interface MailPayload { from: string; to: string; subject: string; text: string; html: string }
 export function rate(db: D1Database, key: string, seconds: number, limit: number, now: number): D1PreparedStatement[] {
   const window = Math.floor(now / seconds);
   return [db.prepare(`INSERT INTO email_rate (key, window, count, expires_at) VALUES (?, ?, 1, ?)

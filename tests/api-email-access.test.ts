@@ -3,7 +3,8 @@ import { afterEach, expect, it, vi } from 'vitest';
 import { Webhook } from 'svix';
 import app from '../worker';
 import { decrypt, hash, randomToken } from '../worker/email-crypto';
-import { deliver, drainEmail, type MailPayload } from '../worker/email-delivery';
+import { deliver, drainEmail } from '../worker/email-delivery';
+import type { MailPayload } from '../worker/email-template';
 import { newIdentity } from '../worker/auth';
 
 const ORIGIN = 'http://127.0.0.1:5173';

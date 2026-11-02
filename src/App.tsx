@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import type { Gift, GiftInput, ListResponse } from '../shared/api';
+import type { Gift, GiftInput, ListResponse, MeResponse } from '../shared/api';
 import { errorMessage, request, RequestError, write } from './api';
+import { EmailRequestForm, RecoveryPage, ConfirmationPage, ExistingAccessNotice } from './EmailAccess';
 import { AllListsPage } from './AllListsPage';
 import { ImagePicker, type GiftDraft } from './ImagePicker';
 
@@ -30,41 +31,52 @@ function SubmitLink({ children, disabled }: { children: string; disabled: boolea
 function HomePage() {
   const navigate = useNavigate();
   const [name, setName] = useState('');
+  const [emailStep, setEmailStep] = useState(false);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
-
+  const [me, setMe] = useState<MeResponse | null>(null);
+  useEffect(() => {
+    const controller = new AbortController();
+    request<MeResponse>('/api/me', { signal: controller.signal }).then(setMe).catch(() => {});
+    return () => controller.abort();
+  }, []);
   async function createList(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (busy) return;
-    setBusy(true);
-    setError('');
+    event.preventDefault(); if (busy) return;
+    if (!name.trim()) { setError('Give your list a name first.'); return; }
+    setBusy(true); setError('');
     try {
-      const create = () => write<ListResponse>('/api/lists', 'POST', { name });
-      // Share a lock across tabs so the first response's ownership cookie is
-      // present before another tab creates its list in this browser.
-      const result = typeof navigator.locks?.request === 'function'
-        ? await navigator.locks.request('gimme-presents-create-list', create)
-        : await create();
-      navigate(`/${encodeURIComponent(result.list.slug)}`);
-      window.scrollTo(0, 0);
+      const session = await request<MeResponse>('/api/me'); setMe(session);
+      if (!session.verified) { setEmailStep(true); return; }
+      const result = await write<ListResponse>('/api/lists', 'POST', { name });
+      navigate(`/${encodeURIComponent(result.list.slug)}`); window.scrollTo(0, 0);
     } catch (reason) {
-      setError(errorMessage(reason));
-    } finally {
-      setBusy(false);
-    }
+      if (reason instanceof RequestError && reason.status === 401) { setMe(null); setEmailStep(true); }
+      else setError(errorMessage(reason));
+    } finally { setBusy(false); }
   }
-
+  async function changeEmail() {
+    setBusy(true); setError('');
+    try { await write('/api/auth/logout', 'POST', {}); setMe(null); }
+    catch (reason) { setError(errorMessage(reason)); }
+    finally { setBusy(false); }
+  }
   return <main className="create-list-page">
     <ChristmasTitle wrapped={false}>Gimme some freakin’ presents!</ChristmasTitle>
     <h2 className="sub-title">Make a gift list for your lame family by typing in the thing below.</h2>
-    <form className="new_list" onSubmit={createList}>
-      <div className="form_block primary">
-        <input type="text" aria-label="List name" name="name" value={name} onChange={(event) => setName(event.target.value)}
-          placeholder="Name your stupid list" /><br />
-        <SubmitLink disabled={busy}>create my list!</SubmitLink>
-      </div>
-      {error && <ErrorNotice message={error} />}
-    </form>
+    {emailStep ? <EmailRequestForm name={name.trim()} onBack={() => setEmailStep(false)} /> : <>
+      <form className="new_list" onSubmit={createList} aria-busy={busy}>
+        <div className="form_block primary">
+          <input type="text" aria-label="List name" name="name" maxLength={120} value={name} onChange={event => setName(event.target.value)}
+            placeholder="Name your stupid list" disabled={busy} /><br />
+          <SubmitLink disabled={busy}>create my list!</SubmitLink>
+        </div>
+        {error && <ErrorNotice message={error} />}
+      </form>
+      <p className="access-footer">{me?.verified ? <>Creating lists as {me.email}.{' '}
+        <button className="text-button" disabled={busy} onClick={() => void changeEmail()}>Use another email</button>
+      </> : <Link to="/auth/recover">Already have a list? Recover access</Link>}</p>
+      {me?.canClaim && <p className="access-footer"><Link to="/auth/recover?claim=1">Save this browser’s lists to your email</Link></p>}
+    </>}
   </main>;
 }
 
@@ -304,6 +316,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   return <main className="list-page">
     <ChristmasTitle action={data.canEdit
       ? <Link className="edit-list-title edit-link" to={`/edit/${list.id}`} aria-label="Edit list name" /> : undefined}>{list.name}</ChristmasTitle>
+    <ExistingAccessNotice listId={list.id} canEdit={data.canEdit} />
     {data.canEdit && <aside aria-label="Add a gift">
       <GiftForm value={newGift} onChange={setNewGift} onSubmit={addGift} busy={disabled}
         notice={noticeTarget === 'new-gift' ? notices : undefined} />
@@ -344,6 +357,8 @@ function RoutedList({ editTitle = false }: { editTitle?: boolean }) {
 export function App() {
   return <Routes>
     <Route path="/" element={<HomePage />} />
+    <Route path="/auth/recover" element={<RecoveryPage />} />
+    <Route path="/auth/access" element={<ConfirmationPage />} />
     <Route path="/local/all-lists" element={<AllListsPage />} />
     <Route path="/edit/:id" element={<RoutedList editTitle />} />
     <Route path="/:slug" element={<RoutedList />} />
