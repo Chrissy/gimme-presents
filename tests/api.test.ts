@@ -1,3 +1,4 @@
+import { verifiedCookie } from './verified-fixture';
 import { env, exports as worker } from 'cloudflare:workers';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { ListResponse, LocalListsResponse, MeResponse } from '../shared/api';
@@ -26,6 +27,7 @@ function request(path: string, method = 'GET', body?: unknown, cookie?: string, 
 }
 
 async function createList(name = 'Christmas wishes', cookie?: string) {
+  cookie ??= await verifiedCookie();
   const response = await request('/api/lists', 'POST', { name }, cookie);
   expect(response.status).toBe(201);
   return {
@@ -95,10 +97,10 @@ describe('local list index', () => {
   });
 });
 
-describe('anonymous ownership', () => {
+describe('verified ownership', () => {
   it('creates an owner only when a list is created, stores a hash, and reuses a persistent session', async () => {
     const initial = await request('/api/me');
-    expect(await initial.json()).toEqual({ lists: [] });
+    expect(await initial.json()).toMatchObject({ lists: [], verified: false });
     expect(initial.headers.has('Set-Cookie')).toBe(false);
     expect(await env.DB.prepare('SELECT COUNT(*) AS count FROM owners').first('count')).toBe(0);
 
@@ -164,16 +166,13 @@ describe('anonymous ownership', () => {
     await env.DB.prepare('UPDATE sessions SET expires_at = ?').bind(expiredAt).run();
     const expiredRead = await request('/api/me', 'GET', undefined, owner.cookie);
     expect(expiredRead.headers.has('Set-Cookie')).toBe(false);
-    expect(await expiredRead.json()).toEqual({ lists: [] });
+    expect(await expiredRead.json()).toMatchObject({ lists: [], verified: false });
     expect(await env.DB.prepare('SELECT expires_at FROM sessions').first('expires_at')).toBe(expiredAt);
     for (const cookie of [owner.cookie, `gimme_session=${'0'.repeat(64)}`, 'gimme_session=invalid']) {
       expect((await readList(owner.data.list.id, cookie)).canEdit).toBe(false);
       expect((await request(`/api/lists/${owner.data.list.id}`, 'DELETE', { revision: 0 }, cookie)).status).toBe(403);
     }
-    const replacement = await createList('New browser session', owner.cookie);
-    expect(replacement.setCookie).not.toBeNull();
-    const newCookie = replacement.setCookie!.split(';')[0];
-    expect((await readList(owner.data.list.id, newCookie)).canEdit).toBe(false);
+    expect((await request('/api/lists', 'POST', { name: 'New list' }, owner.cookie)).status).toBe(401);
   });
 
   it('renews a nearly expired session and cookie when an owner reads a list', async () => {
@@ -234,16 +233,17 @@ describe('anonymous ownership', () => {
     const body = JSON.stringify({ name: 'Local list' });
     const options = {
       method: 'POST',
-      headers: { Origin: 'http://localhost:5173', 'X-Requested-With': 'gimme-presents', 'Content-Type': 'application/json' },
+      headers: { Cookie: '', Origin: 'http://localhost:5173', 'X-Requested-With': 'gimme-presents', 'Content-Type': 'application/json' },
       body,
     };
     const insecureProduction = await app.fetch(new Request('http://localhost:5173/api/lists', options), { ...env, ENVIRONMENT: 'production' });
     expect(insecureProduction.status).toBe(400);
+    options.headers = { ...options.headers, Cookie: await verifiedCookie() };
     const local = await app.fetch(new Request('http://localhost:5173/api/lists', options), { ...env, ENVIRONMENT: 'local' });
     expect(local.status).toBe(201);
     expect(local.headers.get('Set-Cookie')).not.toContain('Secure');
     const secureProduction = await app.fetch(new Request(`${ORIGIN}/api/lists`, {
-      ...options, headers: { ...options.headers, Origin: ORIGIN },
+      ...options, headers: { ...options.headers, Origin: ORIGIN, Cookie: await verifiedCookie() },
     }), { ...env, ENVIRONMENT: 'production' });
     expect(secureProduction.headers.get('Set-Cookie')).toContain('Secure');
   });

@@ -1,12 +1,14 @@
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
-import { currentOwner, newIdentity, setSessionCookie } from './auth';
+import { currentOwner, verifiedSession, anonymousSession, requireVerified, logout } from './auth';
+import { requestAccess, inspectAccess, confirmAccess, localInbox } from './email-access';
+import { drainEmail, emailWebhook } from './email-delivery';
+import { listReservations, quotaBatch } from './owner-budget';
 import {
   conflict, findList, LIST_WRITE_GUARD, listResponse, localLists, mutateList, ownedList, ownedLists, requireGift,
 } from './database';
 import { badRequest, giftBody, giftIds, giftInput, id, jsonBody, name, revision } from './validation';
 import { serveImage, storeImage, storeImageBytes } from './images';
-import { reserveListCreation } from './list-budget';
 
 const app = new Hono<{ Bindings: Env }>();
 
@@ -18,7 +20,7 @@ app.use('/api/*', async (c, next) => {
   if (c.env.ENVIRONMENT !== 'local' && origin.protocol !== 'https:') {
     throw new HTTPException(400, { message: 'HTTPS is required.' });
   }
-  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method)) {
+  if (!['GET', 'HEAD', 'OPTIONS'].includes(c.req.method) && c.req.path !== '/api/email/events') {
     if (c.req.header('Origin') !== origin.origin || c.req.header('X-Requested-With') !== 'gimme-presents') {
       throw new HTTPException(403, { message: 'This request must come from this website.' });
     }
@@ -32,8 +34,10 @@ app.get('/api/health', async c => {
 });
 
 app.get('/api/me', async c => {
-  const ownerId = await currentOwner(c);
-  return c.json({ lists: ownerId ? await ownedLists(c.env.DB, ownerId) : [] });
+  const verified = await verifiedSession(c);
+  const anonymous = await anonymousSession(c);
+  const ownerId = verified?.owner_id ?? anonymous?.owner_id;
+  return c.json({ lists: ownerId ? await ownedLists(c.env.DB, ownerId) : [], verified: !!verified, email: verified?.email_address ?? null, canClaim: !!anonymous });
 });
 
 app.get('/api/local/lists', async c => {
@@ -57,23 +61,17 @@ app.get('/api/lists/:slugOrId', async c => {
 app.post('/api/lists', async c => {
   const body = await jsonBody(c);
   const listName = name(body.name, 'list');
-  await reserveListCreation(c.env.DB);
+  const ownerId = (await requireVerified(c)).owner_id;
   const now = new Date().toISOString();
-  const existingOwner = await currentOwner(c);
-  const identity = existingOwner ? null : await newIdentity(c.env.DB, now);
-  const ownerId = existingOwner ?? identity!.ownerId;
   const slugBase = listName.normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '').slice(0, 70) || 'list';
-  // A suffix avoids reserved routes, numeric-only slugs, and duplicate list names.
   const slug = `${slugBase}-${crypto.randomUUID().replace(/-/g, '').slice(0, 12)}`;
-  const statements = [
-    ...(identity?.statements ?? []),
+  const results = await quotaBatch(c.env.DB, [
+    ...listReservations(c.env.DB, ownerId, now.slice(0, 10)),
     c.env.DB.prepare('INSERT INTO lists (name, slug, owner_id, created_at, updated_at) VALUES (?, ?, ?, ?, ?)')
       .bind(listName, slug, ownerId, now, now),
-  ];
-  const results = await c.env.DB.batch(statements);
+  ], 'New lists have reached a usage limit. Daily allowances reset at midnight UTC; existing lists remain editable.');
   const listId = results[results.length - 1].meta.last_row_id;
-  if (identity) setSessionCookie(c, identity.token);
   return c.json(await listResponse(c.env.DB, listId, ownerId), 201);
 });
 
@@ -101,8 +99,10 @@ app.post('/api/lists/:id/gifts', async c => {
   const { body, file } = await giftBody(c);
   const gift = giftInput(body);
   const { list, ownerId } = await ownedList(c, id(c.req.param('id')), revision(body.revision));
-  const imageKey = file ? await storeImageBytes(c.env.DB, c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()))
-    : await storeImage(c.env.DB, c.env.GIFT_IMAGES, gift.image);
+  if (Number(await c.env.DB.prepare('SELECT COUNT(*) FROM gifts WHERE list_id = ?').bind(list.id).first('COUNT(*)')) >= 200) throw new HTTPException(429, { message: 'This list already has 200 gifts. You can still edit or remove existing gifts.' });
+  if (file || gift.image) await requireVerified(c);
+  const imageKey = file ? await storeImageBytes(c.env.DB, c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()), ownerId)
+    : await storeImage(c.env.DB, c.env.GIFT_IMAGES, gift.image, ownerId);
   const now = new Date().toISOString();
   return c.json(await mutateList(c.env.DB, list, ownerId, [
     c.env.DB.prepare(`
@@ -122,8 +122,9 @@ app.put('/api/lists/:id/gifts/:giftId', async c => {
   const previous = await c.env.DB.prepare('SELECT image, image_key FROM gifts WHERE id = ? AND list_id = ?')
     .bind(giftId, list.id).first<{ image: string; image_key: string | null }>();
   const unchangedImage = !file && !gift.removeImage && previous && (previous.image === body.image || previous.image === gift.image);
-  const imageKey = file ? await storeImageBytes(c.env.DB, c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()))
-    : unchangedImage ? previous.image_key : await storeImage(c.env.DB, c.env.GIFT_IMAGES, gift.image);
+  if (file || (!unchangedImage && gift.image)) await requireVerified(c);
+  const imageKey = file ? await storeImageBytes(c.env.DB, c.env.GIFT_IMAGES, new Uint8Array(await file.arrayBuffer()), ownerId)
+    : unchangedImage ? previous.image_key : await storeImage(c.env.DB, c.env.GIFT_IMAGES, gift.image, ownerId);
   if (unchangedImage) gift.image = previous.image;
   const now = new Date().toISOString();
   return c.json(await mutateList(c.env.DB, list, ownerId, [
@@ -166,6 +167,13 @@ app.post('/api/lists/:id/reorder', async c => {
   ], now));
 });
 
+app.post('/api/auth/request', requestAccess);
+app.post('/api/auth/inspect', inspectAccess);
+app.post('/api/auth/confirm', confirmAccess);
+app.post('/api/auth/logout', logout);
+app.post('/api/email/events', emailWebhook);
+app.get('/api/local/mail', localInbox);
+
 app.all('/api', c => c.json({ error: 'That API route could not be found.' }, 404));
 app.all('/api/*', c => c.json({ error: 'That API route could not be found.' }, 404));
 app.on(['GET', 'HEAD'], '/media/:key', serveImage);
@@ -173,10 +181,11 @@ app.all('/media/*', c => c.text('Image not found.', 404));
 app.all('*', c => c.env.ASSETS.fetch(c.req.raw));
 
 app.onError((error, c) => {
+  if (/gift_capacity|list_capacity/.test(error.message)) return c.json({ error: 'This list or owner has reached its capacity. Existing content remains editable.' }, 429);
   if (error instanceof HTTPException) return c.json({ error: error.message }, error.status);
   // Do not log cookies, request bodies, names, or URLs supplied by list owners.
   console.error(JSON.stringify({ event: 'api_error', name: error.name, message: 'An unexpected request error occurred.' }));
   return c.json({ error: 'Something went wrong. Please try again.' }, 500);
 });
 
-export default app;
+export default { fetch: app.fetch, scheduled: async (_event: ScheduledController, env: Env) => { await drainEmail(env); } };

@@ -9,7 +9,7 @@ export function badRequest(message: string): never {
 }
 
 /** Bound actual streamed bytes before parsing JSON or multipart data. */
-async function bodyBytes(c: AppContext, limit: number, sizeError = 'The request is too large.'): Promise<Uint8Array<ArrayBuffer>> {
+export async function bodyBytes(c: AppContext, limit: number, sizeError = 'The request is too large.'): Promise<Uint8Array<ArrayBuffer>> {
   if (Number(c.req.header('Content-Length') ?? 0) > limit) {
     throw new HTTPException(413, { message: sizeError });
   }
