@@ -3,6 +3,13 @@
 Keep the UI and anonymous ownership simple. Enforce resource usage limits and
 handle exhausted allowances gracefully.
 
+## Canonical branch
+
+`main` is the sole integration and production release branch. Use `origin/main`
+for PR bases, CI, release checks, and deployment instructions. References to
+`master` in older notes or chats are stale; do not recreate or target `master`.
+Feature branches and explicitly agreed review stacks still follow the rules below.
+
 ## PR bases and stacked work
 
 - Base new PRs on freshly fetched `origin/main` by default. Obtain explicit
