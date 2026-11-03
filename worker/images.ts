@@ -1,3 +1,4 @@
+import { publicUrl } from './public-url';
 import { HTTPException } from 'hono/http-exception';
 import type { AppContext } from './auth';
 import { reserveOwnerImage } from './owner-budget';
@@ -12,16 +13,8 @@ function invalidImage(message: string): never {
 }
 
 function publicImageUrl(value: string): URL {
-  let url: URL;
-  try { url = new URL(value); } catch { return invalidImage('Use a public HTTP or HTTPS image link.'); }
-  const host = url.hostname.toLowerCase().replace(/\.$/, '');
-  // Workers' public fetch supplies the network boundary (no VPC binding or
-  // private origin). Reject IP literals, local names and nonstandard ports too.
-  if (!['https:', 'http:'].includes(url.protocol) || url.username || url.password || url.port
-    || !host.includes('.') || /^[\d.]+$/.test(host) || host.includes(':')
-    || /(^|\.)(localhost|local|internal|home|lan|test|invalid)$/.test(host)) {
-    return invalidImage('Use a public HTTP or HTTPS image link.');
-  }
+  const url = publicUrl(value);
+  if (!url) return invalidImage('Use a public HTTP or HTTPS image link.');
   return url;
 }
 

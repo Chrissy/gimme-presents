@@ -51,6 +51,7 @@ test('cookie-owned lists preserve the complete gift workflow and public sharing'
   await page.goto(`/${editPath!.split('/').pop()}`);
   await expect(page).toHaveURL(listUrl);
   const add = page.getByRole('complementary', { name: 'Add a gift' });
+  await add.getByRole('button', { name: 'add manually' }).click();
   // These values preserve the Rails form's native browser appearance on both viewports.
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveCSS('font-family', 'Arial');
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveCSS('font-size', '13.3333px');
@@ -70,6 +71,7 @@ test('cookie-owned lists preserve the complete gift workflow and public sharing'
   localWrangler(['d1', 'execute', 'DB', '--local', '--command',
     `UPDATE gifts SET image = 'http://127.0.0.1:4173/test-gift.svg' WHERE id = ${saved.gifts[0].id}`]);
   await page.reload();
+  await add.getByRole('button', { name: 'add manually' }).click();
   await add.getByLabel('Gift name', { exact: true }).fill('More socks');
   await add.getByLabel('Price in dollars').fill('0');
   await add.getByRole('link', { name: 'create my gift!' }).click();
@@ -144,6 +146,7 @@ test('stored R2 images render for owners and public visitors without their origi
   await page.goto('/');
   await page.getByLabel('List name', { exact: true }).fill('Hosted photo');
   await page.getByRole('link', { name: 'create my list!' }).click();
+  await page.getByRole('button', { name: 'add manually' }).click();
   await page.getByLabel('Gift name', { exact: true }).fill('Hosted gift');
   await page.getByRole('link', { name: 'create my gift!' }).click();
   await expect(page.getByRole('article')).toHaveCount(1);
@@ -179,6 +182,8 @@ test('conflicting tabs retain drafts until the user reloads and retries', async 
   const second = await context.newPage();
   await second.goto(page.url());
   await expect(second.getByRole('heading', { name: 'Add a sweet present!' })).toBeVisible();
+  await second.getByRole('button', { name: 'add manually' }).click();
+  await page.getByRole('button', { name: 'add manually' }).click();
   await second.getByLabel('Gift name', { exact: true }).fill('Keep my draft');
   await page.getByLabel('Gift name', { exact: true }).fill('First tab gift');
   await page.getByRole('link', { name: 'create my gift!' }).click();
