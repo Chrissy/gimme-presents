@@ -33,11 +33,14 @@ large documents can still supply useful metadata. It does not execute scripts.
 
 `worker/gift-suggestion-model.ts` uses `@cf/meta/llama-3.2-3b-instruct` through the
 Workers AI binding. The prompt includes selected variant hints and candidate
-labels/image filenames. The complete prompt content is capped at 1,700 UTF-8
-bytes, leaving framing room within a 2,000-token input allowance; output is
+labels/image filenames. Prompt content plus the response schema is capped at
+1,700 UTF-8 bytes, leaving framing room within a 2,000-token input allowance; output is
 capped at 256 tokens and the call has a twenty-second deadline. There are no
 automatic inference retries. Only validated candidate indices can populate an
-image or price; prices must explicitly use USD. All fields remain editable.
+image or price; prices must explicitly use USD. The response schema constrains
+selections to candidate indices. For a named `color` URL parameter, images must
+mention that color in their label or filename, including in metadata fallback.
+Unconfirmed colors stay blank. All fields remain editable.
 
 Metadata remains available if inference fails or is not configured. Missing or
 ambiguous fields stay blank. A page with no product images or prices does not
@@ -82,6 +85,21 @@ npx wrangler deploy --env production --dry-run
 ```
 
 ## Review and release QA
+
+Representative checks on 2026-11-03 used the real model through an isolated
+Cloudflare preview, without application database or image-storage bindings:
+
+| Retailer sample | Worker fetch | Result |
+| --- | --- | --- |
+| Amazon duffel | Product HTML available | Editable humorous title and main image; price absent and left blank |
+| Mount to Coast trainer | Product HTML unavailable | Manual completion; captured-HTML model check separately found USD 180.00 and excluded the unconfirmed default color image |
+| L.L.Bean sweater | Interstitial without product data | Manual completion; captured-HTML model check separately found the product image and USD 99.95 |
+
+The final captured-HTML model samples used 279–412 input tokens and 36–40 output
+tokens, with 0.4–0.7-second handler durations. The Amazon preview lookup took
+about 1.9 seconds including fetch and inference. This is a small sample, not a
+latency guarantee. Captured-HTML success does not establish retailer compatibility.
+The two unavailable retailer pages remain a known limitation of this approach.
 
 1. Exercise representative product URLs from at least three retailers in an
    isolated local/preview environment. Record transport status separately from

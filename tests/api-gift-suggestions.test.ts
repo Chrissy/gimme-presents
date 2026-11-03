@@ -60,7 +60,7 @@ it('returns only candidate facts and bounds the prompt even for long multilingua
   data.title = '🎁'.repeat(200); data.description = '🎁'.repeat(600);
   for (let i = 0; i < 6; i++) data.images.push({ url: 'https://example.com/image', label: '🎁'.repeat(200) });
   const prompt = modelPrompt(data);
-  expect(new TextEncoder().encode(prompt.messages.map(x => x.content).join('')).byteLength).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
+  expect(new TextEncoder().encode(prompt.messages.map(x => x.content).join('') + JSON.stringify(prompt.responseFormat)).byteLength).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
   const euro = await parseProductPage(HTML.replace('USD', 'EUR'), URL);
   expect((await suggestWithModel(model().ai, URL, euro)).price).toBe('');
 });
@@ -182,4 +182,20 @@ it('accepts a structured JSON-mode response and passes variant hints without sen
   expect(userPrompt.selection).toContain('color=Blue');
   expect(userPrompt.images[0].file).toBe('main.jpg');
   expect(JSON.stringify(userPrompt)).not.toContain('https://');
+});
+
+it('excludes unconfirmed named colors in both metadata fallback and model candidates', async () => {
+  const evidence = { title: 'Training shoes', description: '', prices: [{ amount: '180.00', currency: 'USD', label: 'Shoes' }],
+    images: [{ url: 'https://shop.example.com/pulse.jpg', label: 'Standard shoes' },
+      { url: 'https://shop.example.com/shoe_ultraviolet_01.jpg', label: 'Shoes' }] };
+  const url = 'https://shop.example.com/shoes?color=Ultraviolet';
+  expect(metadataDraft(url, evidence).image).toBe(evidence.images[1].url);
+  const prompt = modelPrompt(evidence, url);
+  expect(prompt.data.images.map(item => item.index)).toEqual([1]);
+  expect(prompt.responseFormat.json_schema.properties.image.enum).toEqual([null, 1]);
+  expect(metadataDraft('https://shop.example.com/shoes?color=tan', evidence).image).toBe('');
+  const { ai, run } = model();
+  run.mockResolvedValue({ response: { name: 'shoes for my imaginary finish line', image: 0, price: 0 } });
+  expect((await suggestWithModel(ai, url, evidence)).image).toBe('');
+  expect(metadataDraft(url, { ...evidence, images: evidence.images.slice(0, 1) }).image).toBe('');
 });
