@@ -23,13 +23,14 @@ function escapeHtml(value: string): string {
 /** Renders message content without database, environment, or delivery access. */
 export function renderAccessEmail({ from, to, listName, accessUrl, recoveryUrl }: AccessEmailOptions): MailPayload {
   const subject = listName ? 'Continue to your GimmePresents list' : 'Restore your GimmePresents access';
-  const intro = listName ? `Continue to create “${listName}”.` : 'Continue to restore editing access to your lists.';
+  const intro = 'Welcome to Gimmesomefreakingpresents!';
+  const action = listName ? 'Click here to create your list' : 'Click here to access your lists';
 
   return {
     from,
     to,
     subject,
-    text: `${intro}\n\n${accessUrl}\n\nThis link expires in 30 minutes. Get a fresh link any time: ${recoveryUrl}\n\nIf you did not request this email, you can ignore it.`,
-    html: `<p>${escapeHtml(intro)}</p><p><a href="${escapeHtml(accessUrl)}">Continue to GimmePresents</a></p><p>This link expires in 30 minutes. <a href="${escapeHtml(recoveryUrl)}">Get a fresh link</a> any time.</p><p>If you did not request this email, you can ignore it.</p>`,
+    text: `${intro}\n\n${action}: ${accessUrl}\n\nThis stupid link expires in 30 minutes. You can Get a fresh link any time: ${recoveryUrl}`,
+    html: `<p>${intro}</p><p><a href="${escapeHtml(accessUrl)}">${action}</a></p><p>This stupid link expires in 30 minutes. You can <a href="${escapeHtml(recoveryUrl)}">Get a fresh link</a> any time.</p>`,
   };
 }

@@ -6,8 +6,8 @@ import { errorMessage, request, write } from './api';
 function requestKey() {
   return Array.from(crypto.getRandomValues(new Uint8Array(32)), byte => byte.toString(16).padStart(2, '0')).join('');
 }
-export function EmailRequestForm({ name, claim = false, returnListId, onBack }: {
-  name?: string; claim?: boolean; returnListId?: number; onBack?: () => void;
+export function EmailRequestForm({ name, claim = false, returnListId }: {
+  name?: string; claim?: boolean; returnListId?: number;
 }) {
   const [email, setEmail] = useState('');
   const [sent, setSent] = useState(false);
@@ -37,11 +37,11 @@ export function EmailRequestForm({ name, claim = false, returnListId, onBack }: 
     finally { setBusy(false); }
   }
   const seconds = Math.max(0, Math.ceil((retryAt - now) / 1000));
-  return <section className="email-panel" aria-label={sent ? 'Check your email' : 'Email verification'}>
+  return <section className="new_list email-panel" aria-label={sent ? 'Check your email' : 'Email verification'}>
     {sent ? <>
       <h2 tabIndex={-1}>Check your email</h2>
       <p>{pending ? 'Your email is queued for delivery to' : 'We sent a link to'} <strong>{sentTo}</strong>.</p>
-      <p>Open the link and press Continue to {name ? 'create your list' : 'restore editing access'}. The link works for 30 minutes.</p>
+      <p>Open the link and click the button to {name ? 'create your list' : 'restore editing access'}. The link works for 30 minutes.</p>
       <p className="email-hint">Use the browser where you want to edit your lists. You can close this tab after opening the email.</p>
       <div className="email-actions">
         <button className="text-button" disabled={busy || seconds > 0} onClick={() => void send(undefined, true)}>
@@ -50,15 +50,12 @@ export function EmailRequestForm({ name, claim = false, returnListId, onBack }: 
         <button className="text-button" disabled={busy} onClick={() => { setSent(false); setError(''); }}>Change email</button>
       </div>
     </> : <form onSubmit={send} aria-busy={busy}>
-      <h2>{claim ? 'Save access to your lists' : name ? 'Save access to your list' : 'Get back to your lists'}</h2>
-      {name && <p className="pending-list-name">{name}</p>}
-      <label htmlFor="access-email">Your email</label>
-      <input id="access-email" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
+      <h2>email me about my stupid list</h2>
+      <input id="access-email" aria-label="Your email" placeholder="example@gmail.com" type="email" autoComplete="email" autoCapitalize="none" spellCheck={false}
         maxLength={254} required autoFocus value={email} onChange={event => setEmail(event.target.value)} disabled={busy} />
-      <p>Use this email to recover access to your lists at any time.</p>
+      <p>You can use this email to recover access to your lists at any time</p>
       {claim && <p>We’ll connect the lists you can edit in this browser to your verified email.</p>}
-      <button className="email-submit" disabled={busy}>{busy ? 'Sending…' : 'Email me a link'}</button>
-      {onBack && <button type="button" className="text-button" disabled={busy} onClick={onBack}>Back to list name</button>}
+      <button className="text-button" disabled={busy}>{busy ? 'Sending…' : 'Send email'}</button>
     </form>}
     {error && <div className="form-notice" role="alert"><p>{error}</p></div>}
   </section>;
@@ -68,9 +65,7 @@ export function RecoveryPage() {
   const [params] = useSearchParams();
   const id = Number(params.get('list'));
   return <main className="access-page">
-    <Link to="/">GimmePresents</Link>
     <EmailRequestForm claim={params.get('claim') === '1'} returnListId={Number.isSafeInteger(id) && id > 0 ? id : undefined} />
-    <p className="access-footer"><Link to="/">Make a new list</Link></p>
   </main>;
 }
 
@@ -99,18 +94,13 @@ function ConfirmLink({ token }: { token: string }) {
     } catch (reason) { setError(errorMessage(reason)); setBusy(false); }
   }
   return <main className="access-page">
-    <Link to="/">GimmePresents</Link>
-    <section className="email-panel">
-      <h1>{details?.name ? 'Your list is almost ready' : 'Restore editing access'}</h1>
+    <section className="new_list email-panel">
       {details ? <form onSubmit={confirm} aria-busy={busy}>
-        {details.name && <p className="pending-list-name">{details.name}</p>}
-        <p>Continue as <strong>{details.email}</strong>.</p>
-        {details.claim && <p>This will save the lists from your original browser to this email.</p>}
-        <button className="email-submit" disabled={busy}>{busy ? 'Opening your list…' : 'Continue'}</button>
-        <p className="email-hint">You’ll be able to edit your lists in this browser.</p>
+        <button className="text-button" disabled={busy}>{busy ? 'Opening your list…' : "click this dumb button to prove you aren't a robot"}</button>
+        <p>you can work on your awesome list next</p>
       </form> : !error && <p role="status">Checking your link…</p>}
       {error && <div className="form-notice" role="alert"><p>{error}</p></div>}
-      <p><Link to="/auth/recover">Get a fresh access link</Link></p>
+      {error && <p><Link to="/auth/recover">Get a fresh access link</Link></p>}
     </section>
   </main>;
 }

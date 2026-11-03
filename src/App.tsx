@@ -61,9 +61,9 @@ function HomePage() {
     finally { setBusy(false); }
   }
   return <main className="create-list-page">
-    <ChristmasTitle wrapped={false}>Gimme some freakin’ presents!</ChristmasTitle>
-    <h2 className="sub-title">Make a gift list for your lame family by typing in the thing below.</h2>
-    {emailStep ? <EmailRequestForm name={name.trim()} onBack={() => setEmailStep(false)} /> : <>
+    {emailStep ? <EmailRequestForm name={name.trim()} /> : <>
+      <ChristmasTitle wrapped={false}>Gimme some freakin’ presents!</ChristmasTitle>
+      <h2 className="sub-title">Make a gift list for your lame family by typing in the thing below.</h2>
       <form className="new_list" onSubmit={createList} aria-busy={busy}>
         <div className="form_block primary">
           <input type="text" aria-label="List name" name="name" maxLength={120} value={name} onChange={event => setName(event.target.value)}
@@ -74,8 +74,7 @@ function HomePage() {
       </form>
       <p className="access-footer">{me?.verified ? <>Creating lists as {me.email}.{' '}
         <button className="text-button" disabled={busy} onClick={() => void changeEmail()}>Use another email</button>
-      </> : <Link to="/auth/recover">Already have a list? Recover access</Link>}</p>
-      {me?.canClaim && <p className="access-footer"><Link to="/auth/recover?claim=1">Save this browser’s lists to your email</Link></p>}
+      </> : <Link to="/auth/recover">Access my old lists</Link>}</p>
     </>}
   </main>;
 }
