@@ -5,6 +5,7 @@ import { errorMessage, request, RequestError, write } from './api';
 import { EmailRequestForm, RecoveryPage, ConfirmationPage, ExistingAccessNotice } from './EmailAccess';
 import { AllListsPage } from './AllListsPage';
 import { ImagePicker, type GiftDraft } from './ImagePicker';
+import { GIFT_FORM_WAIT_MS } from '../shared/gift-suggestion-limits';
 
 const blankGift: GiftInput = { name: '', url: '', image: '', price: '' };
 
@@ -131,6 +132,12 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
     event.preventDefault(); if (busy || active.current) return;
     const controller = new AbortController(); active.current = controller;
     setStage('loading'); setMessage('');
+    const timeout = setTimeout(() => {
+      if (active.current !== controller || controller.signal.aborted) return;
+      controller.abort(); active.current = null;
+      setMessage('That lookup took too long. You can fill in the gift below.'); setStage('edit');
+    }, GIFT_FORM_WAIT_MS);
+    controller.signal.addEventListener('abort', () => clearTimeout(timeout), { once: true });
     try {
       const result = await request<GiftSuggestion>(`/api/lists/${listId}/gift-suggestion`, {
         method: 'POST', body: JSON.stringify({ url: value.url }), signal: controller.signal,
@@ -141,6 +148,7 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
       if (controller.signal.aborted || active.current !== controller) return;
       setMessage(errorMessage(error));
     } finally {
+      clearTimeout(timeout);
       if (!controller.signal.aborted && active.current === controller) {
         active.current = null; setStage('edit');
       }

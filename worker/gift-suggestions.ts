@@ -7,6 +7,7 @@ import { reserveSuggestion, finishSuggestion } from './suggestion-budget';
 import { fetchProductPage } from './product-page';
 import { metadataDraft, suggestWithModel } from './gift-suggestion-model';
 import type { GiftSuggestion } from '../shared/api';
+import { GIFT_LOOKUP_TIMEOUT_MS } from '../shared/gift-suggestion-limits';
 
 export async function giftSuggestion(c: AppContext) {
   const owner = await verifiedSession(c);
@@ -27,13 +28,16 @@ export async function giftSuggestion(c: AppContext) {
   if (reservation.cached) return c.json(reservation.cached);
   let result: GiftSuggestion = { draft: { url: url.href, name: '', price: '', image: '' },
     notice: 'Couldn’t read that page. You can fill in the gift below.' };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), GIFT_LOOKUP_TIMEOUT_MS);
   try {
-    const evidence = await fetchProductPage(url);
+    const evidence = await fetchProductPage(url, controller.signal);
     result = { draft: metadataDraft(url.href, evidence), notice: 'Check the details below and fill in anything missing.' };
     if (evidence.title && (evidence.images.length || evidence.prices.length) && c.env.AI) {
-      result = { draft: await suggestWithModel(c.env.AI, url.href, evidence) };
+      result = { draft: await suggestWithModel(c.env.AI, url.href, evidence, controller.signal) };
     }
   } catch { /* Keep any metadata already found; the form remains editable. */ }
+  finally { clearTimeout(timeout); }
   await finishSuggestion(c.env.DB, owner.owner_id, urlHash, reservation.requestId!, result);
   return c.json(result);
 }

@@ -1,5 +1,7 @@
 import type { GiftInput } from '../shared/api';
 import type { ProductEvidence } from './product-page';
+import { GIFT_LOOKUP_TIMEOUT_MS } from '../shared/gift-suggestion-limits';
+import { withinSignal } from './suggestion-deadline';
 
 export const SUGGESTION_MODEL = '@cf/meta/llama-3.2-3b-instruct';
 export const MAX_OUTPUT_TOKENS = 256;
@@ -61,24 +63,22 @@ export function metadataDraft(url: string, evidence: ProductEvidence): GiftInput
     price: evidence.prices.length === 1 && usd.length === 1 ? usd[0].amount : '' };
 }
 
-export async function suggestWithModel(ai: Ai, url: string, evidence: ProductEvidence): Promise<GiftInput> {
+export async function suggestWithModel(ai: Ai, url: string, evidence: ProductEvidence,
+  signal = AbortSignal.timeout(GIFT_LOOKUP_TIMEOUT_MS)): Promise<GiftInput> {
   const prompt = modelPrompt(evidence, url);
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 20_000);
-  try {
-    const output = await ai.run(SUGGESTION_MODEL, {
-      messages: prompt.messages, max_tokens: MAX_OUTPUT_TOKENS, temperature: 0.5,
-      response_format: prompt.responseFormat,
-    }, { signal: controller.signal });
-    if (!('response' in output) || JSON.stringify(output.response)?.length > 4096) throw new Error('Invalid suggestion');
-    const parsed: unknown = typeof output.response === 'string' ? JSON.parse(output.response) : output.response;
-    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid suggestion');
-    const result = parsed as Record<string, unknown>;
-    if (typeof result.name !== 'string' || !result.name.trim() || result.name.length > 200) throw new Error('Invalid suggestion');
-    const image = Number.isInteger(result.image) && prompt.data.images.some(item => item.index === result.image)
-      ? evidence.images[result.image as number].url : '';
-    const selectedPrice = Number.isInteger(result.price) && prompt.data.prices.some(item => item.index === result.price)
-      ? evidence.prices[result.price as number] : null;
-    return { url, name: result.name.trim(), image, price: selectedPrice?.currency === 'USD' ? selectedPrice.amount : '' };
-  } finally { clearTimeout(timeout); }
+  const output = await withinSignal(signal, () => ai.run(SUGGESTION_MODEL, {
+    messages: prompt.messages, max_tokens: MAX_OUTPUT_TOKENS, temperature: 0.5,
+    response_format: prompt.responseFormat,
+  }, { signal }));
+  signal.throwIfAborted();
+  if (!('response' in output) || JSON.stringify(output.response)?.length > 4096) throw new Error('Invalid suggestion');
+  const parsed: unknown = typeof output.response === 'string' ? JSON.parse(output.response) : output.response;
+  if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) throw new Error('Invalid suggestion');
+  const result = parsed as Record<string, unknown>;
+  if (typeof result.name !== 'string' || !result.name.trim() || result.name.length > 200) throw new Error('Invalid suggestion');
+  const image = Number.isInteger(result.image) && prompt.data.images.some(item => item.index === result.image)
+    ? evidence.images[result.image as number].url : '';
+  const selectedPrice = Number.isInteger(result.price) && prompt.data.prices.some(item => item.index === result.price)
+    ? evidence.prices[result.price as number] : null;
+  return { url, name: result.name.trim(), image, price: selectedPrice?.currency === 'USD' ? selectedPrice.amount : '' };
 }

@@ -71,3 +71,28 @@ test('manual entry cancels a pending suggestion and late results cannot overwrit
   await expect(add.getByLabel('Gift URL')).toHaveValue('https://shop.example.com/shoes');
   await expect(add.getByLabel('Price in dollars')).toHaveValue('');
 });
+
+test('the three-second cutoff opens the form once and ignores late results', async ({ page }) => {
+  const add = await openList(page);
+  await page.clock.install();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  let completed!: () => void;
+  const done = new Promise<void>(resolve => { completed = resolve; });
+  await page.route('**/api/lists/*/gift-suggestion', async route => {
+    await pending;
+    await route.fulfill({ json: { draft: { name: 'Too late', url: 'https://shop.example.com/other', image: '', price: '999' } } });
+    completed();
+  });
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
+  await add.getByRole('link', { name: 'fill in my gift!' }).click();
+  await page.clock.runFor(2500);
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveCount(0);
+  await page.clock.runFor(500);
+  await expect(add.getByRole('status')).toContainText('took too long');
+  await add.getByLabel('Gift name', { exact: true }).fill('Keep my work');
+  release(); await done;
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('Keep my work');
+  await expect(add.getByLabel('Gift URL')).toHaveValue('https://shop.example.com/shoes');
+  await expect(add.getByLabel('Price in dollars')).toHaveValue('');
+});

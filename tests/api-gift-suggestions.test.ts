@@ -6,6 +6,7 @@ import { parseProductPage, fetchProductPage, MAX_PAGE_BYTES } from '../worker/pr
 import { metadataDraft, modelPrompt, MAX_PROMPT_BYTES, suggestWithModel } from '../worker/gift-suggestion-model';
 import { cleanSuggestions, reserveSuggestion } from '../worker/suggestion-budget';
 import type { GiftSuggestion, ListResponse } from '../shared/api';
+import { GIFT_LOOKUP_TIMEOUT_MS } from '../shared/gift-suggestion-limits';
 
 const ORIGIN = 'https://gimme.test';
 const URL = 'https://shop.example.com/mug?variant=blue';
@@ -48,6 +49,9 @@ it('bounds decompressed page bytes, follows validated redirects, and forwards no
   expect(result.title).toBe('A blue mug & lid'); expect(canceled).toBe(true);
   expect(fetch.mock.calls[1][0]).toBe('https://shop.example.com/final');
   expect(new Headers(fetch.mock.calls[0][1]?.headers).has('Cookie')).toBe(false);
+  for (const [, options] of fetch.mock.calls) {
+    expect(new Headers(options?.headers).get('User-Agent')).toBe('GimmePresents/1.0 (+https://gimmesomefreakingpresents.com)');
+  }
   fetch.mockResolvedValue(new Response(null, { status: 302, headers: { Location: 'http://169.254.169.254/' } }));
   await expect(fetchProductPage(new globalThis.URL(URL))).rejects.toThrow();
   expect(fetch).toHaveBeenCalledTimes(3);
@@ -159,17 +163,57 @@ it('does not call the model for an uninformative page, and missing budget rows s
   expect(fetch).toHaveBeenCalledTimes(1);
 });
 
-it('aborts a slow model once without retrying inference', async () => {
+it('stops waiting for a model that ignores cancellation without retrying inference', async () => {
   const evidence = await parseProductPage(HTML, URL);
+  const controller = new AbortController();
+  const run = vi.fn(() => new Promise(() => {}));
+  const result = suggestWithModel({ run } as unknown as Ai, URL, evidence, controller.signal);
+  const assertion = expect(result).rejects.toThrow('deadline');
+  controller.abort(new Error('deadline'));
+  await assertion; expect(run).toHaveBeenCalledTimes(1);
+});
+
+it('shares one deadline across fetch and inference, caches metadata, and releases the owner lease', async () => {
+  const user = await owner();
+  let started!: () => void;
+  const fetching = new Promise<void>(resolve => { started = resolve; });
+  const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => {
+    started(); await new Promise(resolve => setTimeout(resolve, 2000)); return page();
+  });
+  const run = vi.fn(() => new Promise(() => {}));
   vi.useFakeTimers();
   try {
-    const run = vi.fn((_model, _input, options) => new Promise((_resolve, reject) => {
-      options.signal.addEventListener('abort', () => reject(new Error('deadline')), { once: true });
-    }));
-    const result = suggestWithModel({ run } as unknown as Ai, URL, evidence);
-    const assertion = expect(result).rejects.toThrow('deadline');
-    await vi.advanceTimersByTimeAsync(20_000);
-    await assertion; expect(run).toHaveBeenCalledTimes(1);
+    const response = call(user.path, user.cookie, { url: URL }, { run } as unknown as Ai);
+    await fetching;
+    await vi.advanceTimersByTimeAsync(2000);
+    expect(run).toHaveBeenCalledTimes(1);
+    await vi.advanceTimersByTimeAsync(GIFT_LOOKUP_TIMEOUT_MS - 2000);
+    const result = await (await response).json<GiftSuggestion>();
+    expect(result.draft.name).toBe('A blue mug & lid');
+    expect(result.draft.price).toBe('24.50');
+    expect(result.notice).toBeTruthy();
+    expect((run.mock.calls as unknown[][])[0][2]).toMatchObject({ signal: expect.objectContaining({ aborted: true }) });
+    expect(await env.DB.prepare('SELECT suggestion_until FROM owner_usage WHERE owner_id = ?').bind(user.ownerId).first('suggestion_until')).toBe(0);
+    expect(await (await call(user.path, user.cookie, { url: URL })).json()).toEqual(result);
+    expect(fetch).toHaveBeenCalledTimes(1);
+    expect(await env.DB.prepare('SELECT attempts FROM suggestion_budget').first('attempts')).toBe(1);
+  } finally { vi.useRealTimers(); }
+});
+
+it('returns a manual draft at the fetch deadline without starting inference', async () => {
+  const user = await owner(); const { ai, run } = model();
+  let started!: () => void;
+  const fetching = new Promise<void>(resolve => { started = resolve; });
+  vi.spyOn(globalThis, 'fetch').mockImplementation(() => { started(); return new Promise(() => {}); });
+  vi.useFakeTimers();
+  try {
+    const response = call(user.path, user.cookie, { url: URL }, ai);
+    await fetching;
+    await vi.advanceTimersByTimeAsync(GIFT_LOOKUP_TIMEOUT_MS);
+    const result = await (await response).json<GiftSuggestion>();
+    expect(result.draft).toEqual({ url: URL, name: '', price: '', image: '' });
+    expect(run).not.toHaveBeenCalled();
+    expect(await env.DB.prepare('SELECT suggestions FROM owner_usage WHERE owner_id = ?').bind(user.ownerId).first('suggestions')).toBe(1);
   } finally { vi.useRealTimers(); }
 });
 

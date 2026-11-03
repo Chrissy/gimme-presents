@@ -1,4 +1,6 @@
 import { publicUrl } from './public-url';
+import { GIFT_LOOKUP_TIMEOUT_MS } from '../shared/gift-suggestion-limits';
+import { withinSignal } from './suggestion-deadline';
 
 export interface ProductEvidence {
   title: string;
@@ -91,14 +93,14 @@ export async function parseProductPage(html: string, pageUrl: string): Promise<P
   return result;
 }
 
-export async function fetchProductPage(source: URL): Promise<ProductEvidence> {
+export async function fetchProductPage(source: URL, signal = AbortSignal.timeout(GIFT_LOOKUP_TIMEOUT_MS)): Promise<ProductEvidence> {
   let url = source;
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 10_000);
-  try {
+  return withinSignal(signal, async () => {
     for (let redirect = 0; redirect <= 3; redirect++) {
-      const response = await fetch(url.href, { redirect: 'manual', signal: controller.signal,
-        headers: { Accept: 'text/html,application/xhtml+xml' } });
+      signal.throwIfAborted();
+      const response = await fetch(url.href, { redirect: 'manual', signal,
+        headers: { Accept: 'text/html,application/xhtml+xml',
+          'User-Agent': 'GimmePresents/1.0 (+https://gimmesomefreakingpresents.com)' } });
       if ([301, 302, 303, 307, 308].includes(response.status)) {
         await response.body?.cancel();
         const location = response.headers.get('Location');
@@ -123,5 +125,5 @@ export async function fetchProductPage(source: URL): Promise<ProductEvidence> {
       return await parseProductPage(html, url.href);
     }
     throw new Error('Unavailable product page');
-  } finally { clearTimeout(timeout); }
+  });
 }

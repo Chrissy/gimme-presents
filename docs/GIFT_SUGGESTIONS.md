@@ -2,7 +2,9 @@
 
 New gifts start with a URL. Submitting it returns an editable draft in the
 existing gift form; saving remains a separate action. Manual entry is available
-before, during, and after a lookup. Existing gift editing is unchanged.
+before, during, and after a lookup. The full form opens once, after the lookup
+finishes or reaches its deadline; late results cannot overwrite edits. Existing
+gift editing is unchanged.
 
 ```mermaid
 sequenceDiagram
@@ -28,14 +30,16 @@ sequenceDiagram
 `worker/product-page.ts` reads product JSON-LD, Open Graph, Twitter cards,
 product price metadata, and selected product image elements. Relative image
 URLs resolve against the final page URL. It reads at most 512 KiB, follows at
-most three redirects, and has a ten-second fetch deadline. The beginning of
+most three redirects, and identifies requests as `GimmePresents/1.0`. The beginning of
 large documents can still supply useful metadata. It does not execute scripts.
 
 `worker/gift-suggestion-model.ts` uses `@cf/meta/llama-3.2-3b-instruct` through the
 Workers AI binding. The prompt includes selected variant hints and candidate
 labels/image filenames. Prompt content plus the response schema is capped at
 1,700 UTF-8 bytes, leaving framing room within a 2,000-token input allowance; output is
-capped at 256 tokens and the call has a twenty-second deadline. There are no
+capped at 256 tokens. Fetching and inference share a 2.5-second deadline,
+leaving response time before the browser opens the form at three seconds. A
+provider that ignores cancellation cannot keep the form waiting. There are no
 automatic inference retries. Only validated candidate indices can populate an
 image or price; prices must explicitly use USD. The response schema constrains
 selections to candidate indices. For a named `color` URL parameter, images must
@@ -86,20 +90,31 @@ npx wrangler deploy --env production --dry-run
 
 ## Review and release QA
 
-Representative checks on 2026-11-03 used the real model through an isolated
-Cloudflare preview, without application database or image-storage bindings:
+Representative checks on 2026-11-03 used an isolated Cloudflare preview, without
+application database or image-storage bindings. An explicit application
+User-Agent changed Mount to Coast and L.L.Bean from rejection/interstitial
+responses to product HTML; the comparison was repeated with the same outcome.
 
-| Retailer sample | Worker fetch | Result |
-| --- | --- | --- |
-| Amazon duffel | Product HTML available | Editable humorous title and main image; price absent and left blank |
-| Mount to Coast trainer | Product HTML unavailable | Manual completion; captured-HTML model check separately found USD 180.00 and excluded the unconfirmed default color image |
-| L.L.Bean sweater | Interstitial without product data | Manual completion; captured-HTML model check separately found the product image and USD 99.95 |
+| Retailer samples | Fetch and extraction result |
+| --- | --- |
+| Amazon, Target, IKEA | Product title and image; no USD price candidate |
+| Mount to Coast | Product title and USD price; unconfirmed selected-color image excluded |
+| L.L.Bean, Nike, Apple, LEGO | Product title, image, and USD price candidates |
+| REI, Walmart, Etsy | Access denied or bot challenge; manual completion |
+| Patagonia | Maintenance page; manual completion |
 
-The final captured-HTML model samples used 279–412 input tokens and 36–40 output
-tokens, with 0.4–0.7-second handler durations. The Amazon preview lookup took
-about 1.9 seconds including fetch and inference. This is a small sample, not a
-latency guarantee. Captured-HTML success does not establish retailer compatibility.
-The two unavailable retailer pages remain a known limitation of this approach.
+Eight of twelve selected pages supplied useful metadata, five supplied USD
+price candidates. This is one product per retailer, not a representative success
+rate or a guarantee of variant accuracy. With real inference, the eight successful
+pages took 0.51–1.44 seconds as observed by the preview client (median 1.02 seconds).
+Those timings include fetch, extraction, inference, and the preview response trip;
+they exclude application database checks and image loading and are not a latency
+SLA. The sample used 32–47 output tokens per lookup.
+
+Desktop/mobile smoke tests also edited an actual model result, saved its real
+retailer image to local hosted storage, reloaded it, and checked the public view.
+The dedicated cutoff tests cover metadata preservation, a hanging provider, a
+slow fetch, and late browser responses after editing begins.
 
 1. Exercise representative product URLs from at least three retailers in an
    isolated local/preview environment. Record transport status separately from
