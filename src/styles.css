@@ -149,7 +149,9 @@ a { color: green; }
 .new_list .form-notice, .edit_list .form-notice { width: 80%; margin-bottom: 0; }
 .new_gift .form-notice, .edit_gift .form-notice { margin: 14px 0 0; }
 
-/* A single image attachment, with the add control at the form's bottom right. */
+/* A single image attachment alongside the form's save action. */
+.gift-back { display: inline-block; margin-bottom: 18px; }
+.gift-back[aria-disabled="true"] { color: #666; cursor: default; }
 .gift-footer { position: relative; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 2px; }
 .gift-actions { order: 2; flex: 1; }
 .gift-saving { display: block; margin-top: 5px; color: #666; font-size: 12px; }
@@ -164,6 +166,9 @@ a { color: green; }
 .image-popover { position: absolute; z-index: 5; bottom: 40px; right: 0; box-sizing: border-box; width: 230px; max-width: 100%; padding: 6px; border: 1px solid #ccc; border-radius: 6px; background: white; box-shadow: 0 3px 12px #0002; font: 13px/1.4 monospace; color: #222; }
 .image-popover button { display: block; width: 100%; padding: 8px; border: 0; background: white; color: inherit; text-align: left; font: inherit; cursor: pointer; border-radius: 3px; }
 .image-popover button:hover { background: #f1f5f1; }
+.new_gift .image-add { order: 2; }
+.new_gift .gift-actions { order: 3; text-align: right; }
+.new_gift .image-popover { left: 0; right: auto; }
 .image-popover label { display: block; margin: 5px 8px; }
 .image-popover input { box-sizing: border-box; width: calc(100% - 16px); margin: 0 8px 5px; padding: 5px; font: inherit; }
 .image-error { order: 1; flex-basis: 100%; margin: 0 0 5px; color: #8b1b1b; font: 12px/1.4 monospace; }
