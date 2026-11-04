@@ -21,7 +21,6 @@ test('a link reveals an editable draft, saves user changes, and returns to URL e
   await page.screenshot({ path: info.outputPath('gift-link.png'), fullPage: true });
   await add.getByLabel('Gift URL', { exact: true }).fill('https://shop.example.com/mug');
   expect(calls).toBe(0);
-  await add.getByLabel('Gift URL', { exact: true }).press('Enter');
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('a mug for my personality substitute');
   await expect(add.getByLabel('Price in dollars')).toHaveValue('24.50');
   await expect(add.getByRole('img', { name: 'Image preview' })).toBeVisible();
@@ -32,7 +31,7 @@ test('a link reveals an editable draft, saves user changes, and returns to URL e
   await add.getByRole('button', { name: 'Remove image' }).click();
   await add.getByRole('link', { name: 'create my gift!' }).click();
   await expect(page.getByRole('article', { name: 'The mug I actually want' })).toContainText('$22.00');
-  await expect(add.getByRole('link', { name: 'fill in my gift!' })).toBeVisible();
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveCount(0);
   await expect(add.getByLabel('Gift URL')).toHaveValue('');
   expect(calls).toBe(1);
 });
@@ -41,7 +40,6 @@ test('limits reveal the manual form without losing the URL', async ({ page }, in
   const add = await openList(page);
   await page.route('**/api/lists/*/gift-suggestion', route => route.fulfill({ status: 429, json: { error: 'Gift suggestions have reached a usage limit. You can still add gifts manually.' } }));
   await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
-  await add.getByRole('link', { name: 'fill in my gift!' }).click();
   await expect(add.getByLabel('Gift URL')).toHaveValue('https://shop.example.com/shoes');
   await expect(add.getByRole('status')).toContainText('manually');
   await add.getByLabel('Gift name', { exact: true }).fill('Shoes');
@@ -50,26 +48,32 @@ test('limits reveal the manual form without losing the URL', async ({ page }, in
   await expect(page.getByRole('article', { name: 'Shoes' })).toBeVisible();
 });
 
-test('manual entry cancels a pending suggestion and late results cannot overwrite edits', async ({ page }) => {
+test('lookup waits for a complete link and uses only the final URL after typing settles', async ({ page }) => {
   const add = await openList(page);
-  let release!: () => void;
-  const pending = new Promise<void>(resolve => { release = resolve; });
-  let completed!: () => void;
-  const done = new Promise<void>(resolve => { completed = resolve; });
-  await page.route('**/api/lists/*/gift-suggestion', async route => {
-    await pending;
-    await route.fulfill({ json: { draft: { name: 'Late answer', url: 'https://shop.example.com/other', image: '', price: '999' } } });
-    completed();
+  await page.clock.install();
+  const urls: string[] = [];
+  await page.route('**/api/lists/*/gift-suggestion', route => {
+    const { url } = route.request().postDataJSON();
+    urls.push(url);
+    return route.fulfill({ json: { draft: { name: 'Shoes', url, image: '', price: '' } } });
   });
-  await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
-  await add.getByRole('link', { name: 'fill in my gift!' }).click();
-  await expect(add.getByRole('status')).toContainText('Checking');
-  await add.getByRole('button', { name: 'add manually' }).click();
-  await add.getByLabel('Gift name', { exact: true }).fill('Keep my title');
-  release(); await done;
-  await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('Keep my title');
-  await expect(add.getByLabel('Gift URL')).toHaveValue('https://shop.example.com/shoes');
-  await expect(add.getByLabel('Price in dollars')).toHaveValue('');
+  const input = add.getByLabel('Gift URL');
+  await expect(add.getByRole('link', { name: 'fill in my gift!' })).toHaveCount(0);
+  await expect(add.getByRole('button', { name: 'add manually' })).toHaveCount(0);
+  await input.fill('https://');
+  await page.clock.runFor(1000);
+  expect(urls).toEqual([]);
+  await input.fill('https://shop.example.com/shoe');
+  await page.clock.runFor(300);
+  await input.fill('https://shop.example.com/shoes?color=purple');
+  await page.clock.runFor(300);
+  expect(urls).toEqual([]);
+  await page.clock.runFor(100);
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('Shoes');
+  expect(urls).toEqual(['https://shop.example.com/shoes?color=purple']);
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/edited');
+  await page.clock.runFor(1000);
+  expect(urls).toHaveLength(1);
 });
 
 test('the three-second cutoff opens the form once and ignores late results', async ({ page }) => {
@@ -85,7 +89,8 @@ test('the three-second cutoff opens the form once and ignores late results', asy
     completed();
   });
   await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
-  await add.getByRole('link', { name: 'fill in my gift!' }).click();
+  await page.clock.runFor(400);
+  await expect(add.getByRole('status')).toContainText('Checking');
   await page.clock.runFor(2500);
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveCount(0);
   await page.clock.runFor(500);

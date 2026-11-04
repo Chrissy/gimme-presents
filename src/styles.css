@@ -78,7 +78,7 @@ a { color: green; }
   background: rgba(255,255,255,0.8);
 }
 .new_gift .add-message, .edit_gift .add-message { display: none; }
-.new_gift input[type="text"], .edit_gift input[type="text"] { margin-bottom: 10px; }
+.new_gift .primary > input[type="text"], .edit_gift .primary > input[type="text"] { box-sizing: border-box; width: 100%; margin-bottom: 10px; }
 .new_gift { position: fixed; left: 10px; bottom: 40px; }
 .new_gift .add-message { display: block; margin-top: 0; }
 

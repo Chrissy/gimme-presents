@@ -1,5 +1,5 @@
 import { execFileSync } from 'node:child_process';
-import { test as base, expect } from '@playwright/test';
+import { test as base, expect, type Page } from '@playwright/test';
 
 export const test = base.extend<{ signedIn: boolean; accessSetup: void }>({
   signedIn: [true, { option: true }],
@@ -30,3 +30,14 @@ function resetLocalAllowances() {
 }
 
 export { expect };
+
+// Other workflow tests start from an empty editable draft, without a retailer request.
+export async function openGiftForm(page: Page) {
+  await page.route('**/api/lists/*/gift-suggestion', route => route.fulfill({
+    json: { draft: { name: '', url: route.request().postDataJSON().url, image: '', price: '' } },
+  }), { times: 1 });
+  const add = page.getByRole('complementary', { name: 'Add a gift' });
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/gift');
+  await expect(add.getByLabel('Gift name', { exact: true })).toBeVisible();
+  await add.getByLabel('Gift URL').fill('');
+}
