@@ -80,6 +80,8 @@ a { color: green; }
 .new_gift .add-message, .edit_gift .add-message { display: none; }
 .new_gift .primary > input[type="text"], .edit_gift .primary > input[type="text"] { box-sizing: border-box; width: 100%; margin-bottom: 10px; }
 .new_gift { position: fixed; left: 10px; bottom: 40px; }
+.edit_gift { position: relative; padding-top: 38px; }
+.gift-close { position: absolute; top: 6px; right: 10px; min-width: 24px; min-height: 24px; }
 .new_gift .add-message { display: block; margin-top: 0; }
 
 .new_list, .edit_list {

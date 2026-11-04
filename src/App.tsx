@@ -87,7 +87,7 @@ function giftInput(gift: Gift): GiftDraft {
   return { name: gift.name, url: gift.url, image: gift.image, imageUrl: gift.imageUrl, price: gift.priceCents === null ? '' : String(gift.priceCents / 100) };
 }
 
-function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, onBack }: {
+function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, onBack, onClose }: {
   value: GiftDraft;
   onChange: (value: GiftDraft) => void;
   onSubmit: () => void;
@@ -96,9 +96,11 @@ function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, 
   children?: ReactNode;
   notice?: ReactNode;
   onBack?: () => void;
+  onClose?: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   return <form ref={formRef} aria-busy={busy} className={editing ? 'edit_gift' : 'new_gift'} onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
+    {onClose && <button type="button" className="text-button gift-close" aria-label="Close gift editor" onClick={onClose}>[X]</button>}
     {onBack ? <a href="#" className="gift-back" aria-disabled={busy} onClick={event => {
       event.preventDefault(); if (!busy) onBack();
     }}>{'< back'}</a> : <h3 className="add-message">Add a sweet present!</h3>}
@@ -201,6 +203,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   const [listName, setListName] = useState('');
   const mutationLock = useRef(false);
   const editorRef = useRef<HTMLDivElement>(null);
+  const editTriggerRef = useRef<HTMLAnchorElement>(null);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -404,12 +407,14 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
           <a href="#" className="toggle-edit-controls edit-link" aria-label={`Edit ${gift.name}`} onClick={(event) => {
             event.preventDefault();
             event.stopPropagation();
+            editTriggerRef.current = event.currentTarget;
             setGiftDrafts((drafts) => ({ ...drafts, [gift.id]: drafts[gift.id] ?? giftInput(gift) }));
             setEditingId(gift.id);
           }}>edit</a>
           <div className={`edit-gift-container hidden${editingId === gift.id ? ' active' : ''}`} ref={editingId === gift.id ? editorRef : undefined}>
             {editingId === gift.id && <GiftForm value={giftDrafts[gift.id]} onChange={(value) => setGiftDrafts((drafts) => ({ ...drafts, [gift.id]: value }))}
-              onSubmit={saveGift} busy={disabled} editing notice={noticeTarget === gift.id ? notices : undefined}>
+              onSubmit={saveGift} busy={disabled} editing notice={noticeTarget === gift.id ? notices : undefined}
+              onClose={() => { setEditingId(null); editTriggerRef.current?.focus(); }}>
               <a href="#" aria-label={`Delete ${gift.name}`} aria-disabled={disabled || undefined} onClick={(event) => { event.preventDefault(); if (!disabled) void deleteGift(gift); }}>delete</a>
             </GiftForm>}
           </div>

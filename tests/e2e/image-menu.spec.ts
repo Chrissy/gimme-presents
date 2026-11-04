@@ -51,6 +51,14 @@ test('plus menu uploads a preview on save and supports editing and removal', asy
   await expect(article.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', /^\/media\//);
   await page.screenshot({ path: testInfo.outputPath('edit-gift-footer.png'), fullPage: true });
   await article.getByLabel('Gift name', { exact: true }).fill('Renamed upload');
+  const writesBeforeClose = writes.length;
+  await article.getByRole('button', { name: 'Close gift editor' }).click();
+  await expect(article.getByLabel('Gift name', { exact: true })).toHaveCount(0);
+  await expect(article.getByRole('link', { name: 'Edit Uploaded gift', exact: true })).toBeFocused();
+  expect(writes).toHaveLength(writesBeforeClose);
+  await article.getByRole('link', { name: 'Edit Uploaded gift', exact: true }).click();
+  await expect(article.getByLabel('Gift name', { exact: true })).toHaveValue('Renamed upload');
+  await expect(article.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', /^\/media\//);
   await article.getByRole('link', { name: 'update my gift!' }).click();
   const renamed = page.getByRole('article', { name: 'Renamed upload', exact: true });
   await expect(renamed.getByRole('img', { name: 'Renamed upload', exact: true })).toHaveAttribute('src', /^\/media\//);
