@@ -56,3 +56,8 @@ export interface GiftInput {
 export interface ApiError {
   error: string;
 }
+
+export interface GiftSuggestion {
+  draft: GiftInput;
+  notice?: string;
+}

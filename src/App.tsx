@@ -1,10 +1,11 @@
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
-import type { Gift, GiftInput, ListResponse, MeResponse } from '../shared/api';
+import type { Gift, GiftInput, GiftSuggestion, ListResponse, MeResponse } from '../shared/api';
 import { errorMessage, request, RequestError, write } from './api';
 import { EmailRequestForm, RecoveryPage, ConfirmationPage, ExistingAccessNotice } from './EmailAccess';
 import { AllListsPage } from './AllListsPage';
 import { ImagePicker, type GiftDraft } from './ImagePicker';
+import { GIFT_FORM_WAIT_MS } from '../shared/gift-suggestion-limits';
 
 const blankGift: GiftInput = { name: '', url: '', image: '', price: '' };
 
@@ -115,6 +116,59 @@ function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice }
   </form>;
 }
 
+function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
+  listId: number; value: GiftDraft; onChange: (value: GiftDraft) => void;
+  onSubmit: () => void; busy: boolean; notice?: ReactNode;
+}) {
+  const [stage, setStage] = useState<'url' | 'loading' | 'edit'>('url');
+  const [message, setMessage] = useState('');
+  const active = useRef<AbortController | null>(null);
+  useEffect(() => () => active.current?.abort(), []);
+  function manual() {
+    active.current?.abort(); active.current = null;
+    setMessage(''); setStage('edit');
+  }
+  async function suggest(event: FormEvent) {
+    event.preventDefault(); if (busy || active.current) return;
+    const controller = new AbortController(); active.current = controller;
+    setStage('loading'); setMessage('');
+    const timeout = setTimeout(() => {
+      if (active.current !== controller || controller.signal.aborted) return;
+      controller.abort(); active.current = null;
+      setMessage('That lookup took too long. You can fill in the gift below.'); setStage('edit');
+    }, GIFT_FORM_WAIT_MS);
+    controller.signal.addEventListener('abort', () => clearTimeout(timeout), { once: true });
+    try {
+      const result = await request<GiftSuggestion>(`/api/lists/${listId}/gift-suggestion`, {
+        method: 'POST', body: JSON.stringify({ url: value.url }), signal: controller.signal,
+      });
+      if (controller.signal.aborted || active.current !== controller) return;
+      onChange(result.draft); setMessage(result.notice ?? '');
+    } catch (error) {
+      if (controller.signal.aborted || active.current !== controller) return;
+      setMessage(errorMessage(error));
+    } finally {
+      clearTimeout(timeout);
+      if (!controller.signal.aborted && active.current === controller) {
+        active.current = null; setStage('edit');
+      }
+    }
+  }
+  if (stage === 'edit') return <GiftForm value={value} onChange={onChange} onSubmit={onSubmit} busy={busy}
+    notice={<>{message && <p role="status">{message}</p>}{notice}</>} />;
+  return <form className="new_gift" onSubmit={suggest} aria-busy={stage === 'loading'}>
+    <h3 className="add-message">Add a sweet present!</h3>
+    <div className="form_block primary">
+      <input type="text" aria-label="Gift URL" placeholder="Paste a gift link" maxLength={2048} required
+        value={value.url} onChange={event => onChange({ ...value, url: event.target.value })} disabled={busy || stage === 'loading'} /><br />
+      <SubmitLink disabled={busy || stage === 'loading'}>fill in my gift!</SubmitLink>{' '}
+      <button type="button" className="text-button" disabled={busy} onClick={manual}>add manually</button>
+      {stage === 'loading' && <span className="gift-saving" role="status">Checking your gift…</span>}
+    </div>
+    {notice}
+  </form>;
+}
+
 function safeRemoteUrl(value: string): string | undefined {
   try {
     const url = new URL(value);
@@ -137,6 +191,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [newGift, setNewGift] = useState<GiftDraft>({ ...blankGift });
+  const [giftFormKey, setGiftFormKey] = useState(0);
   const [editingId, setEditingId] = useState<number | null>(null);
   const [giftDrafts, setGiftDrafts] = useState<Record<number, GiftDraft>>({});
   const [listName, setListName] = useState('');
@@ -241,7 +296,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   }
 
   async function addGift() {
-    await mutate(() => writeGift(`${mutationPath}/gifts`, 'POST', newGift));
+    if (await mutate(() => writeGift(`${mutationPath}/gifts`, 'POST', newGift))) setGiftFormKey(key => key + 1);
   }
 
   async function saveGift() {
@@ -317,7 +372,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
       ? <Link className="edit-list-title edit-link" to={`/edit/${list.id}`} aria-label="Edit list name" /> : undefined}>{list.name}</ChristmasTitle>
     <ExistingAccessNotice listId={list.id} canEdit={data.canEdit} />
     {data.canEdit && <aside aria-label="Add a gift">
-      <GiftForm value={newGift} onChange={setNewGift} onSubmit={addGift} busy={disabled}
+      <NewGiftForm key={giftFormKey} listId={list.id} value={newGift} onChange={setNewGift} onSubmit={addGift} busy={disabled}
         notice={noticeTarget === 'new-gift' ? notices : undefined} />
     </aside>}
     {typeof noticeTarget === 'number' && noticeTarget !== editingId && notices}

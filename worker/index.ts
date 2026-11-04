@@ -1,3 +1,5 @@
+import { giftSuggestion } from './gift-suggestions';
+import { cleanSuggestions } from './suggestion-budget';
 import { Hono } from 'hono';
 import { HTTPException } from 'hono/http-exception';
 import { currentOwner, verifiedSession, anonymousSession, requireVerified, logout } from './auth';
@@ -95,6 +97,8 @@ app.delete('/api/lists/:id', async c => {
   return c.json({ ok: true });
 });
 
+app.post('/api/lists/:id/gift-suggestion', giftSuggestion);
+
 app.post('/api/lists/:id/gifts', async c => {
   const { body, file } = await giftBody(c);
   const gift = giftInput(body);
@@ -188,4 +192,4 @@ app.onError((error, c) => {
   return c.json({ error: 'Something went wrong. Please try again.' }, 500);
 });
 
-export default { fetch: app.fetch, scheduled: async (_event: ScheduledController, env: Env) => { await drainEmail(env); } };
+export default { fetch: app.fetch, scheduled: async (_event: ScheduledController, env: Env) => { await drainEmail(env); await cleanSuggestions(env.DB); } };
