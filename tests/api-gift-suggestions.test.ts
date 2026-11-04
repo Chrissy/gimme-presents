@@ -101,7 +101,7 @@ it('keeps metadata on model failure and counts unsuccessful attempts conservativ
   const user = await owner(); const { ai, run } = model('not JSON');
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => page());
   const first = await (await call(user.path, user.cookie, { url: URL }, ai)).json<GiftSuggestion>();
-  expect(first.draft.name).toBe('A blue mug & lid'); expect(first.notice).toBeTruthy();
+  expect(first.draft.name).toBe('A blue mug & lid'); expect(first.notice).toBeUndefined();
   expect(run).toHaveBeenCalledTimes(1);
   fetch.mockRejectedValue(new Error('offline'));
   const second = await (await call(user.path, user.cookie, { url: URL + '&different=1' }, ai)).json<GiftSuggestion>();
@@ -191,7 +191,7 @@ it('shares one deadline across fetch and inference, caches metadata, and release
     const result = await (await response).json<GiftSuggestion>();
     expect(result.draft.name).toBe('A blue mug & lid');
     expect(result.draft.price).toBe('24.50');
-    expect(result.notice).toBeTruthy();
+    expect(result.notice).toBeUndefined();
     expect((run.mock.calls as unknown[][])[0][2]).toMatchObject({ signal: expect.objectContaining({ aborted: true }) });
     expect(await env.DB.prepare('SELECT suggestion_until FROM owner_usage WHERE owner_id = ?').bind(user.ownerId).first('suggestion_until')).toBe(0);
     expect(await (await call(user.path, user.cookie, { url: URL })).json()).toEqual(result);

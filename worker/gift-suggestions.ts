@@ -32,7 +32,7 @@ export async function giftSuggestion(c: AppContext) {
   const timeout = setTimeout(() => controller.abort(), GIFT_LOOKUP_TIMEOUT_MS);
   try {
     const evidence = await fetchProductPage(url, controller.signal);
-    result = { draft: metadataDraft(url.href, evidence), notice: 'Check the details below and fill in anything missing.' };
+    result = { draft: metadataDraft(url.href, evidence) };
     if (evidence.title && (evidence.images.length || evidence.prices.length) && c.env.AI) {
       result = { draft: await suggestWithModel(c.env.AI, url.href, evidence, controller.signal) };
     }
