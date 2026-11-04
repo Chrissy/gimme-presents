@@ -1,5 +1,5 @@
 import { env } from 'cloudflare:workers';
-import { afterEach, expect, it, vi } from 'vitest';
+import { afterEach, beforeEach, expect, it, vi } from 'vitest';
 import app from '../worker';
 import { verifiedCookie } from './verified-fixture';
 import { parseProductPage, fetchProductPage, MAX_PAGE_BYTES } from '../worker/product-page';
@@ -23,11 +23,12 @@ async function owner() {
   const ownerId = await env.DB.prepare('SELECT owner_id FROM lists WHERE id = ?').bind(data.list.id).first<string>('owner_id');
   return { cookie, path: `/api/lists/${data.list.id}/gift-suggestion`, ownerId: ownerId! };
 }
-function model(response = '{"name":"a mug for my personality substitute","image":0,"price":0}') {
+function model(response = '{"name":"mug","image":0,"price":0}') {
   const run = vi.fn().mockResolvedValue({ response });
   return { ai: { run } as unknown as Ai, run };
 }
 const page = () => new Response(HTML, { headers: { 'Content-Type': 'text/html' } });
+beforeEach(() => { vi.spyOn(Math, 'random').mockReturnValue(0); });
 afterEach(() => vi.restoreAllMocks());
 
 it('combines product JSON-LD, Open Graph, and Twitter data with resolved public URLs', async () => {
@@ -59,14 +60,32 @@ it('bounds decompressed page bytes, follows validated redirects, and forwards no
 
 it('returns only candidate facts and bounds the prompt even for long multilingual metadata', async () => {
   const data = await parseProductPage(HTML, URL);
-  const { ai } = model('{"name":"a mug for my personality substitute","image":42,"price":42,"url":"https://wrong.example"}');
-  expect(await suggestWithModel(ai, URL, data)).toEqual({ url: URL, name: 'a mug for my personality substitute', image: '', price: '' });
+  const { ai } = model('{"name":"mug","image":42,"price":42,"url":"https://wrong.example"}');
+  expect(await suggestWithModel(ai, URL, data)).toEqual({ url: URL, name: 'stupid mug', image: '', price: '' });
   data.title = '🎁'.repeat(200); data.description = '🎁'.repeat(600);
   for (let i = 0; i < 6; i++) data.images.push({ url: 'https://example.com/image', label: '🎁'.repeat(200) });
   const prompt = modelPrompt(data);
   expect(new TextEncoder().encode(prompt.messages.map(x => x.content).join('') + JSON.stringify(prompt.responseFormat)).byteLength).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
   const euro = await parseProductPage(HTML.replace('USD', 'EUR'), URL);
   expect((await suggestWithModel(model().ai, URL, euro)).price).toBe('');
+});
+
+it('varies the joke locally while retaining the model product and candidate facts in one call per draft', async () => {
+  const evidence = await parseProductPage(HTML, URL);
+  const { ai, run } = model('{"name":"mug","image":0,"price":0}');
+  const first = await suggestWithModel(ai, URL, evidence);
+  vi.mocked(Math.random).mockReturnValue(0.999);
+  const second = await suggestWithModel(ai, URL, evidence);
+  expect(first.name).toBe('stupid mug');
+  expect(second).toEqual({ ...first, name: 'silly mug' });
+  expect(run).toHaveBeenCalledTimes(2);
+});
+
+it('rejects an overlong combined name without retrying the model', async () => {
+  const evidence = await parseProductPage(HTML, URL);
+  const { ai, run } = model(JSON.stringify({ name: 'x'.repeat(200), image: 0, price: 0 }));
+  await expect(suggestWithModel(ai, URL, evidence)).rejects.toThrow('Invalid suggestion');
+  expect(run).toHaveBeenCalledTimes(1);
 });
 
 it('authenticates ownership before network work and rejects invalid public destinations', async () => {
@@ -87,8 +106,10 @@ it('makes one model call, caches retries, and only saves the edited gift through
   const response = await call(user.path, user.cookie, { url: URL }, ai);
   expect(response.status).toBe(200);
   const result = await response.json<GiftSuggestion>();
-  expect(result.draft).toEqual({ url: URL, name: 'a mug for my personality substitute', price: '24.50', image: 'https://shop.example.com/main.jpg' });
-  expect((await call(user.path, user.cookie, { url: URL + '#details' }, ai)).status).toBe(200);
+  expect(result.draft).toEqual({ url: URL, name: 'stupid mug', price: '24.50', image: 'https://shop.example.com/main.jpg' });
+  vi.mocked(Math.random).mockReturnValue(0.999);
+  const cached = await call(user.path, user.cookie, { url: URL + '#details' }, ai);
+  expect(cached.status).toBe(200); expect(await cached.json()).toEqual(result);
   expect(run).toHaveBeenCalledTimes(1); expect(fetch).toHaveBeenCalledTimes(1);
   expect(await env.DB.prepare('SELECT COUNT(*) FROM gifts').first('COUNT(*)')).toBe(0);
   expect((await env.GIFT_IMAGES.list()).objects).toHaveLength(0);
@@ -220,8 +241,8 @@ it('returns a manual draft at the fetch deadline without starting inference', as
 it('accepts a structured JSON-mode response and passes variant hints without sending full URLs', async () => {
   const evidence = await parseProductPage(HTML, URL);
   const { ai, run } = model();
-  run.mockResolvedValue({ response: { name: 'my unnecessary mug', image: 0, price: 0 } });
-  expect((await suggestWithModel(ai, URL + '&color=Blue', evidence)).name).toBe('my unnecessary mug');
+  run.mockResolvedValue({ response: { name: '  Ceramic Mug  ', image: 0, price: 0 } });
+  expect((await suggestWithModel(ai, URL + '&color=Blue', evidence)).name).toBe('stupid ceramic mug');
   const userPrompt = JSON.parse(run.mock.calls[0][1].messages[1].content);
   expect(userPrompt.selection).toContain('color=Blue');
   expect(userPrompt.images[0].file).toBe('main.jpg');
@@ -239,7 +260,7 @@ it('excludes unconfirmed named colors in both metadata fallback and model candid
   expect(prompt.responseFormat.json_schema.properties.image.enum).toEqual([null, 1]);
   expect(metadataDraft('https://shop.example.com/shoes?color=tan', evidence).image).toBe('');
   const { ai, run } = model();
-  run.mockResolvedValue({ response: { name: 'shoes for my imaginary finish line', image: 0, price: 0 } });
+  run.mockResolvedValue({ response: { name: 'shoes', image: 0, price: 0 } });
   expect((await suggestWithModel(ai, url, evidence)).image).toBe('');
   expect(metadataDraft(url, { ...evidence, images: evidence.images.slice(0, 1) }).image).toBe('');
 });

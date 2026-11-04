@@ -53,6 +53,13 @@ selections to candidate indices. For a named `color` URL parameter, images must
 mention that color in their label or filename, including in metadata fallback.
 Unconfirmed colors stay blank. All fields remain editable.
 
+For titles, the model identifies a short, plain product type. The app adds one
+randomly chosen mild insult or silly modifier, such as `stupid`, `dumb`, or
+`deeply unnecessary`. This keeps the joke aimed at the item and varies the
+wording without another model call, extra history, or a larger token allowance.
+The complete draft is cached, so repeating a URL within ten minutes preserves
+its title. Random choices can repeat; titles are not guaranteed to be unique.
+
 Metadata remains available if inference fails or is not configured. Missing or
 ambiguous fields stay blank. A page with no product images or prices does not
 trigger inference. Suggested image URLs use the existing preview; R2 copying
@@ -96,6 +103,15 @@ npx wrangler deploy --env production --dry-run
 ```
 
 ## Review and release QA
+
+A bounded title check on 2026-11-04 used twelve real model calls with synthetic
+metadata for a fleece hoody, massage gun, hiking boots, and coffee mug (three
+drafts each). Eleven titles were distinct; all twelve preserved the product type
+and selected the supplied image and USD price. Examples included `stupid mountain
+fleece hoody`, `try-hard massage gun`, and `deeply unnecessary ceramic coffee mug`.
+Inference through an isolated preview binding took 0.25–0.58 seconds per draft;
+this excludes retailer fetching and application database work. This small sample
+checks the naming approach, not general retailer accuracy or guaranteed variety.
 
 Representative checks on 2026-11-03 used an isolated Cloudflare preview, without
 application database or image-storage bindings. An explicit application
