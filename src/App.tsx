@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { lazy, Suspense, useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import type { Gift, GiftInput, GiftSuggestion, ListResponse, MeResponse } from '../shared/api';
 import { errorMessage, request, RequestError, write } from './api';
@@ -6,6 +6,9 @@ import { EmailRequestForm, RecoveryPage, ConfirmationPage, ExistingAccessNotice 
 import { AllListsPage } from './AllListsPage';
 import { ImagePicker, type GiftDraft } from './ImagePicker';
 import { GIFT_FORM_WAIT_MS } from '../shared/gift-suggestion-limits';
+import { giftImageUrl, safeRemoteUrl } from './urls';
+
+const GiftRail = lazy(() => import('./GiftRail'));
 
 const blankGift: GiftInput = { name: '', url: '', image: '', price: '' };
 
@@ -179,15 +182,6 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
   </form>;
 }
 
-function safeRemoteUrl(value: string): string | undefined {
-  try {
-    const url = new URL(value);
-    return (url.protocol === 'https:' || url.protocol === 'http:') && !url.username && !url.password ? url.href : undefined;
-  } catch {
-    return undefined;
-  }
-}
-
 function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   const { slug, id } = useParams();
   const identifier = slug ?? id ?? '';
@@ -197,7 +191,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
   const [notFound, setNotFound] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const [error, setError] = useState('');
-  const [noticeTarget, setNoticeTarget] = useState<'new-gift' | 'list' | number>('new-gift');
+  const [noticeTarget, setNoticeTarget] = useState<'new-gift' | 'list' | 'reorder' | number>('new-gift');
   const [busy, setBusy] = useState(false);
   const [conflict, setConflict] = useState(false);
   const [newGift, setNewGift] = useState<GiftDraft>({ ...blankGift });
@@ -332,6 +326,31 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
     await mutate(() => write<ListResponse>(`${mutationPath}/reorder`, 'POST', { giftIds, ...common }), data!.gifts[index].id);
   }
 
+  async function reorderGifts(from: number, to: number) {
+    if (!data?.canEdit || mutationLock.current || conflict || from === to
+      || from < 0 || to < 0 || from >= data.gifts.length || to >= data.gifts.length) return;
+    const previous = data;
+    const gifts = [...data.gifts];
+    const [moved] = gifts.splice(from, 1);
+    gifts.splice(to, 0, moved);
+    mutationLock.current = true;
+    setBusy(true);
+    setError('');
+    setNoticeTarget('reorder');
+    setData({ ...data, gifts });
+    try {
+      // Reordering keeps draft fields and scroll position, unlike submitting a gift.
+      setData(await write<ListResponse>(`${mutationPath}/reorder`, 'POST', { giftIds: gifts.map(gift => gift.id), ...common }));
+    } catch (reason) {
+      setData(previous);
+      if (reason instanceof RequestError && reason.status === 409) setConflict(true);
+      else setError(`Couldn’t save the new order. ${errorMessage(reason)}`);
+    } finally {
+      mutationLock.current = false;
+      setBusy(false);
+    }
+  }
+
   async function saveTitle(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (await mutate(() => write<ListResponse>(mutationPath, 'PUT', { name: listName, ...common }), 'list')) {
@@ -377,7 +396,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
     </form> : <ErrorNotice message="This browser does not have editing access to this list." />}
   </main>;
 
-  return <main className="list-page">
+  return <main className={`list-page${data.canEdit && data.gifts.length ? ' list-page-with-rail' : ''}`}>
     <ChristmasTitle action={data.canEdit
       ? <Link className="edit-list-title edit-link" to={`/edit/${list.id}`} aria-label="Edit list name" /> : undefined}>{list.name}</ChristmasTitle>
     <ExistingAccessNotice listId={list.id} canEdit={data.canEdit} />
@@ -386,10 +405,13 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
         notice={noticeTarget === 'new-gift' ? notices : undefined} />
     </aside>}
     {typeof noticeTarget === 'number' && noticeTarget !== editingId && notices}
+    {data.canEdit && <Suspense fallback={null}>
+      <GiftRail gifts={data.gifts} disabled={disabled} busy={busy} onReorder={(from, to) => void reorderGifts(from, to)} />
+    </Suspense>}
+    {noticeTarget === 'reorder' && (error || conflict) && <div className="gift-reorder-notice">{notices}</div>}
     <div className="gifts">
       {data.gifts.map((gift, index) => <article className="gift" key={gift.id} aria-label={gift.name}>
-        <img src={/^\/media\/[a-f0-9-]+\.(png|jpg|gif|webp)$/.test(gift.imageUrl)
-          ? gift.imageUrl : safeRemoteUrl(gift.imageUrl)} alt={gift.imageUrl ? gift.name : ''} /><br />
+        <img src={giftImageUrl(gift.imageUrl)} alt={gift.imageUrl ? gift.name : ''} /><br />
         <a href={safeRemoteUrl(gift.url) ?? ''}>{gift.name}</a><br />
         <span className="price">{gift.priceCents !== null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gift.priceCents / 100) : ''}</span>
         {data.canEdit && <> <div className="controls">
