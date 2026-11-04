@@ -24,8 +24,10 @@ sequenceDiagram
   Worker->>D1: Check verified owner; reuse result or reserve allowance
   Worker->>Page: Bounded HTML fetch
   Worker->>Worker: Collect product and share metadata
-  Worker->>AI: One bounded prompt with candidate facts
-  AI-->>Worker: Title and candidate indices
+  Worker->>AI: Extract product type and candidate indices
+  AI-->>Worker: Plain product type and candidate indices
+  Worker->>AI: Write a silly title for the product
+  AI-->>Worker: Creative title (or keep plain type on failure)
   Worker->>D1: Cache validated draft for ten minutes
   Worker-->>Browser: Editable fields or partial fallback
   Browser->>Worker: Save edited gift
@@ -41,10 +43,12 @@ most three redirects, and identifies requests as `GimmePresents/1.0`. The beginn
 large documents can still supply useful metadata. It does not execute scripts.
 
 `worker/gift-suggestion-model.ts` uses `@cf/meta/llama-3.2-3b-instruct` through the
-Workers AI binding. The prompt includes selected variant hints and candidate
-labels/image filenames. Prompt content plus the response schema is capped at
-1,700 UTF-8 bytes, leaving framing room within a 2,000-token input allowance; output is
-capped at 256 tokens. Fetching and inference share a 2.5-second deadline,
+Workers AI binding. The first prompt includes selected variant hints and candidate
+labels/image filenames. A second prompt receives only the extracted product type
+and writes the silly title. The two prompts and their response schemas share a
+1,700 UTF-8 byte cap (1,050 for extraction, 650 for naming), leaving framing room
+within the existing 2,000-token input allowance. Outputs share the 256-token cap
+(160 for extraction, 96 for naming). Fetching and both calls share a 2.5-second deadline,
 leaving response time before the browser opens the form at three seconds. A
 provider that ignores cancellation cannot keep the form waiting. There are no
 automatic inference retries. Only validated candidate indices can populate an
@@ -53,12 +57,14 @@ selections to candidate indices. For a named `color` URL parameter, images must
 mention that color in their label or filename, including in metadata fallback.
 Unconfirmed colors stay blank. All fields remain editable.
 
-For titles, the model identifies a short, plain product type. The app adds one
-randomly chosen mild insult or silly modifier, such as `stupid`, `dumb`, or
-`deeply unnecessary`. This keeps the joke aimed at the item and varies the
-wording without another model call, extra history, or a larger token allowance.
-The complete draft is cached, so repeating a URL within ten minutes preserves
-its title. Random choices can repeat; titles are not guaranteed to be unique.
+The model handles both jobs distinctly: identify the item, then write a short,
+blunt, silly name for it. The naming pass uses higher sampling temperature and
+returns the complete title; the application has no adjective list. A failed,
+invalid, oversized, or late naming response keeps the plain product type and
+already validated image/price. A product type too long for the naming prompt
+skips that call. Neither step retries. The complete draft is cached, so repeating
+a URL within ten minutes preserves its title without new inference. Titles can
+still repeat; variety and humor are not guaranteed.
 
 Metadata remains available if inference fails or is not configured. Missing or
 ambiguous fields stay blank. A page with no product images or prices does not
@@ -81,7 +87,7 @@ saving a gift. Suggestions are not a guarantee of current stock or pricing.
 
 D1 reserves owner and global counters together before external work. Failed and
 uncertain work counts. Repeating the same URL reuses its cached result without
-another model call. Fragments are ignored; variant query parameters are retained.
+more model calls. Fragments are ignored; variant query parameters are retained.
 Expired records are removed by the existing scheduled handler. Missing budget
 records stop new lookups. Exhausting suggestions does not disable manual entry.
 
@@ -104,14 +110,13 @@ npx wrangler deploy --env production --dry-run
 
 ## Review and release QA
 
-A bounded title check on 2026-11-04 used twelve real model calls with synthetic
-metadata for a fleece hoody, massage gun, hiking boots, and coffee mug (three
-drafts each). Eleven titles were distinct; all twelve preserved the product type
-and selected the supplied image and USD price. Examples included `stupid mountain
-fleece hoody`, `try-hard massage gun`, and `deeply unnecessary ceramic coffee mug`.
-Inference through an isolated preview binding took 0.25–0.58 seconds per draft;
-this excludes retailer fetching and application database work. This small sample
-checks the naming approach, not general retailer accuracy or guaranteed variety.
+A bounded check of the final creative prompt on 2026-11-04 used twelve real
+model calls with four supplied product types (three names each). It produced ten
+distinct names, preserved each supplied product phrase, and did not use
+`clumsy`. Examples included `dumb massage gun`, `totally bogus massage gun`, and
+`utterly useless ceramic coffee mug`. This isolates naming quality; it does not
+measure retailer fetching, extraction accuracy, or end-to-end latency. Repetition
+and awkward phrasing remain possible with the small model.
 
 Representative checks on 2026-11-03 used an isolated Cloudflare preview, without
 application database or image-storage bindings. An explicit application

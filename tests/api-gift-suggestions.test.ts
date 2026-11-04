@@ -1,9 +1,9 @@
 import { env } from 'cloudflare:workers';
-import { afterEach, beforeEach, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import app from '../worker';
 import { verifiedCookie } from './verified-fixture';
 import { parseProductPage, fetchProductPage, MAX_PAGE_BYTES } from '../worker/product-page';
-import { metadataDraft, modelPrompt, MAX_PROMPT_BYTES, suggestWithModel } from '../worker/gift-suggestion-model';
+import { metadataDraft, modelPrompt, titlePrompt, MAX_PROMPT_BYTES, MAX_OUTPUT_TOKENS, suggestWithModel } from '../worker/gift-suggestion-model';
 import { cleanSuggestions, reserveSuggestion } from '../worker/suggestion-budget';
 import type { GiftSuggestion, ListResponse } from '../shared/api';
 import { GIFT_LOOKUP_TIMEOUT_MS } from '../shared/gift-suggestion-limits';
@@ -23,12 +23,13 @@ async function owner() {
   const ownerId = await env.DB.prepare('SELECT owner_id FROM lists WHERE id = ?').bind(data.list.id).first<string>('owner_id');
   return { cookie, path: `/api/lists/${data.list.id}/gift-suggestion`, ownerId: ownerId! };
 }
-function model(response = '{"name":"mug","image":0,"price":0}') {
-  const run = vi.fn().mockResolvedValue({ response });
+function model(response = '{"name":"mug","image":0,"price":0}', title = '{"name":"stupid mug"}') {
+  const run = vi.fn().mockImplementation(async (_model, input) => ({
+    response: input.response_format.json_schema.required.includes('image') ? response : title,
+  }));
   return { ai: { run } as unknown as Ai, run };
 }
 const page = () => new Response(HTML, { headers: { 'Content-Type': 'text/html' } });
-beforeEach(() => { vi.spyOn(Math, 'random').mockReturnValue(0); });
 afterEach(() => vi.restoreAllMocks());
 
 it('combines product JSON-LD, Open Graph, and Twitter data with resolved public URLs', async () => {
@@ -65,27 +66,69 @@ it('returns only candidate facts and bounds the prompt even for long multilingua
   data.title = '🎁'.repeat(200); data.description = '🎁'.repeat(600);
   for (let i = 0; i < 6; i++) data.images.push({ url: 'https://example.com/image', label: '🎁'.repeat(200) });
   const prompt = modelPrompt(data);
-  expect(new TextEncoder().encode(prompt.messages.map(x => x.content).join('') + JSON.stringify(prompt.responseFormat)).byteLength).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
+  const title = titlePrompt('fleece hoody')!;
+  const bytes = [prompt, title].reduce((sum, item) => sum + new TextEncoder().encode(
+    item.messages.map(x => x.content).join('') + JSON.stringify(item.responseFormat)).byteLength, 0);
+  expect(bytes).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
   const euro = await parseProductPage(HTML.replace('USD', 'EUR'), URL);
   expect((await suggestWithModel(model().ai, URL, euro)).price).toBe('');
 });
 
-it('varies the joke locally while retaining the model product and candidate facts in one call per draft', async () => {
+it('lets a separate creative pass write the title without changing extracted facts or the total budget', async () => {
   const evidence = await parseProductPage(HTML, URL);
-  const { ai, run } = model('{"name":"mug","image":0,"price":0}');
-  const first = await suggestWithModel(ai, URL, evidence);
-  vi.mocked(Math.random).mockReturnValue(0.999);
-  const second = await suggestWithModel(ai, URL, evidence);
-  expect(first.name).toBe('stupid mug');
-  expect(second).toEqual({ ...first, name: 'silly mug' });
+  const { ai, run } = model(undefined, '{"name":"utterly pointless mug","image":42,"price":42,"url":"https://wrong.example"}');
+  const draft = await suggestWithModel(ai, URL, evidence);
+  expect(draft).toEqual({ url: URL, name: 'utterly pointless mug', image: evidence.images[0].url, price: '24.50' });
   expect(run).toHaveBeenCalledTimes(2);
+  const calls = run.mock.calls;
+  expect(JSON.parse(calls[1][1].messages[1].content)).toEqual({ product: 'mug' });
+  expect(calls.reduce((sum, call) => sum + call[1].max_tokens, 0)).toBeLessThanOrEqual(MAX_OUTPUT_TOKENS);
+  const bytes = calls.reduce((sum, call) => sum + new TextEncoder().encode(
+    call[1].messages.map((message: { content: string }) => message.content).join('') + JSON.stringify(call[1].response_format)).byteLength, 0);
+  expect(bytes).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
+  expect(calls[0][2].signal).toBe(calls[1][2].signal);
 });
 
-it('rejects an overlong combined name without retrying the model', async () => {
+it('bounds both prompts even when selected variants require heavy JSON escaping', async () => {
   const evidence = await parseProductPage(HTML, URL);
-  const { ai, run } = model(JSON.stringify({ name: 'x'.repeat(200), image: 0, price: 0 }));
-  await expect(suggestWithModel(ai, URL, evidence)).rejects.toThrow('Invalid suggestion');
+  const prompt = modelPrompt(evidence, `https://shop.example.com/?variant=${encodeURIComponent('\0'.repeat(200))}`);
+  const title = titlePrompt('mug')!;
+  const bytes = [prompt, title].reduce((sum, item) => sum + new TextEncoder().encode(
+    item.messages.map(x => x.content).join('') + JSON.stringify(item.responseFormat)).byteLength, 0);
+  expect(bytes).toBeLessThanOrEqual(MAX_PROMPT_BYTES);
+});
+
+it('keeps the plain product and facts if the creative response is invalid, without retrying', async () => {
+  const evidence = await parseProductPage(HTML, URL);
+  for (const title of ['not JSON', '{"name":""}', JSON.stringify({ name: 'x'.repeat(201) })]) {
+    const { ai, run } = model(undefined, title);
+    expect(await suggestWithModel(ai, URL, evidence)).toEqual({ url: URL, name: 'mug', image: evidence.images[0].url, price: '24.50' });
+    expect(run).toHaveBeenCalledTimes(2);
+  }
+});
+
+it('skips the creative call when a long product name would exceed its prompt allowance', async () => {
+  const evidence = await parseProductPage(HTML, URL);
+  const name = '🎁'.repeat(80);
+  const { ai, run } = model(JSON.stringify({ name, image: 0, price: 0 }));
+  expect(titlePrompt(name)).toBeNull();
+  expect((await suggestWithModel(ai, URL, evidence)).name).toBe(name);
   expect(run).toHaveBeenCalledTimes(1);
+});
+
+it('keeps extracted facts at the shared deadline if the creative call ignores cancellation', async () => {
+  const evidence = await parseProductPage(HTML, URL);
+  const controller = new AbortController();
+  let started!: () => void;
+  const generating = new Promise<void>(resolve => { started = resolve; });
+  const { ai, run } = model();
+  run.mockResolvedValueOnce({ response: { name: 'mug', image: 0, price: 0 } })
+    .mockImplementationOnce(() => { started(); return new Promise(() => {}); });
+  const result = suggestWithModel(ai, URL, evidence, controller.signal);
+  await generating;
+  controller.abort(new Error('deadline'));
+  expect(await result).toEqual({ url: URL, name: 'mug', image: evidence.images[0].url, price: '24.50' });
+  expect(run).toHaveBeenCalledTimes(2);
 });
 
 it('authenticates ownership before network work and rejects invalid public destinations', async () => {
@@ -100,17 +143,16 @@ it('authenticates ownership before network work and rejects invalid public desti
   expect(await env.DB.prepare('SELECT attempts FROM suggestion_budget').first('attempts')).toBe(0);
 });
 
-it('makes one model call, caches retries, and only saves the edited gift through the existing endpoint', async () => {
+it('makes two bounded model calls, caches retries, and only saves the edited gift through the existing endpoint', async () => {
   const user = await owner(); const { ai, run } = model();
   const fetch = vi.spyOn(globalThis, 'fetch').mockImplementation(async () => page());
   const response = await call(user.path, user.cookie, { url: URL }, ai);
   expect(response.status).toBe(200);
   const result = await response.json<GiftSuggestion>();
   expect(result.draft).toEqual({ url: URL, name: 'stupid mug', price: '24.50', image: 'https://shop.example.com/main.jpg' });
-  vi.mocked(Math.random).mockReturnValue(0.999);
   const cached = await call(user.path, user.cookie, { url: URL + '#details' }, ai);
   expect(cached.status).toBe(200); expect(await cached.json()).toEqual(result);
-  expect(run).toHaveBeenCalledTimes(1); expect(fetch).toHaveBeenCalledTimes(1);
+  expect(run).toHaveBeenCalledTimes(2); expect(fetch).toHaveBeenCalledTimes(1);
   expect(await env.DB.prepare('SELECT COUNT(*) FROM gifts').first('COUNT(*)')).toBe(0);
   expect((await env.GIFT_IMAGES.list()).objects).toHaveLength(0);
   const saved = await call(user.path.replace('gift-suggestion', 'gifts'), user.cookie, { ...result.draft, name: 'My edited mug', image: '', revision: 0 });
@@ -241,7 +283,8 @@ it('returns a manual draft at the fetch deadline without starting inference', as
 it('accepts a structured JSON-mode response and passes variant hints without sending full URLs', async () => {
   const evidence = await parseProductPage(HTML, URL);
   const { ai, run } = model();
-  run.mockResolvedValue({ response: { name: '  Ceramic Mug  ', image: 0, price: 0 } });
+  run.mockResolvedValueOnce({ response: { name: '  Ceramic Mug  ', image: 0, price: 0 } })
+    .mockResolvedValueOnce({ response: { name: '  Stupid Ceramic Mug  ' } });
   expect((await suggestWithModel(ai, URL + '&color=Blue', evidence)).name).toBe('stupid ceramic mug');
   const userPrompt = JSON.parse(run.mock.calls[0][1].messages[1].content);
   expect(userPrompt.selection).toContain('color=Blue');
