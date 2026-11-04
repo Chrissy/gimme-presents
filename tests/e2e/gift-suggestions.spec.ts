@@ -25,7 +25,7 @@ test('a link reveals an editable draft, saves user changes, and returns to URL e
   await expect(add.getByLabel('Price in dollars')).toHaveValue('24.50');
   await expect(add.getByRole('img', { name: 'Image preview' })).toBeVisible();
   await expect(add.getByRole('heading')).toHaveCount(0);
-  await expect(add.getByRole('link', { name: 'back', exact: true })).toBeVisible();
+  await expect(add.getByRole('link', { name: '< back', exact: true })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('gift-draft.png'), fullPage: true });
   await add.getByLabel('Gift name', { exact: true }).fill('The mug I actually want');
@@ -56,7 +56,7 @@ test('back returns to the preserved link without a new lookup or uploading the d
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('stupid mug');
   await add.getByLabel('Upload image', { exact: true }).setInputFiles('public/edit.png');
   await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', /^blob:/);
-  await add.getByRole('link', { name: 'back', exact: true }).click();
+  await add.getByRole('link', { name: '< back', exact: true }).click();
   await expect(add.getByRole('heading', { name: 'Add a sweet present!' })).toBeVisible();
   await expect(add.getByLabel('Gift URL')).toHaveValue('https://shop.example.com/mug');
   await expect(add.getByLabel('Gift URL')).toBeFocused();
