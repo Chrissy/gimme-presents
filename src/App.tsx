@@ -101,7 +101,7 @@ function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, 
   return <form ref={formRef} aria-busy={busy} className={editing ? 'edit_gift' : 'new_gift'} onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
     {onBack ? <a href="#" className="gift-back" aria-disabled={busy} onClick={event => {
       event.preventDefault(); if (!busy) onBack();
-    }}>back</a> : <h3 className="add-message">Add a sweet present!</h3>}
+    }}>{'< back'}</a> : <h3 className="add-message">Add a sweet present!</h3>}
     <div className="form_block primary">
       <input type="text" disabled={busy} aria-label="Gift name" name="name" value={value.name} placeholder="Name"
         onChange={(event) => onChange({ ...value, name: event.target.value })} />{' '}
@@ -111,9 +111,9 @@ function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, 
         onChange={(event) => onChange({ ...value, price: event.target.value })} /><br />
       <div className="gift-footer">
         <ImagePicker value={value} onChange={onChange} busy={busy} formRef={formRef} />
+        {children && <div className="gift-secondary-actions">{children}</div>}
         <div className="gift-actions">
           <SubmitLink disabled={busy}>{editing ? 'update my gift!' : 'create my gift!'}</SubmitLink>
-          {children}
           {busy && <span className="gift-saving" role="status">Saving…</span>}
         </div>
       </div>
@@ -312,20 +312,6 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
     await mutate(() => write<ListResponse>(`${mutationPath}/gifts/${gift.id}`, 'DELETE', common), gift.id);
   }
 
-  async function moveGift(index: number, direction: -1 | 1) {
-    const giftIds = data!.gifts.map((gift) => gift.id);
-    const destination = index + direction;
-    if (destination < 0 || destination >= giftIds.length) {
-      setEditingId(null);
-      setGiftDrafts({});
-      setNewGift({ ...blankGift });
-      window.scrollTo(0, 0);
-      return;
-    }
-    [giftIds[index], giftIds[destination]] = [giftIds[destination], giftIds[index]];
-    await mutate(() => write<ListResponse>(`${mutationPath}/reorder`, 'POST', { giftIds, ...common }), data!.gifts[index].id);
-  }
-
   async function reorderGifts(from: number, to: number) {
     if (!data?.canEdit || mutationLock.current || conflict || from === to
       || from < 0 || to < 0 || from >= data.gifts.length || to >= data.gifts.length) return;
@@ -410,7 +396,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
     </Suspense>}
     {noticeTarget === 'reorder' && (error || conflict) && <div className="gift-reorder-notice">{notices}</div>}
     <div className="gifts">
-      {data.gifts.map((gift, index) => <article className="gift" key={gift.id} aria-label={gift.name}>
+      {data.gifts.map(gift => <article className="gift" key={gift.id} aria-label={gift.name}>
         <img src={giftImageUrl(gift.imageUrl)} alt={gift.imageUrl ? gift.name : ''} /><br />
         <a href={safeRemoteUrl(gift.url) ?? ''}>{gift.name}</a><br />
         <span className="price">{gift.priceCents !== null ? new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(gift.priceCents / 100) : ''}</span>
@@ -424,9 +410,7 @@ function ListPage({ editTitle = false }: { editTitle?: boolean }) {
           <div className={`edit-gift-container hidden${editingId === gift.id ? ' active' : ''}`} ref={editingId === gift.id ? editorRef : undefined}>
             {editingId === gift.id && <GiftForm value={giftDrafts[gift.id]} onChange={(value) => setGiftDrafts((drafts) => ({ ...drafts, [gift.id]: value }))}
               onSubmit={saveGift} busy={disabled} editing notice={noticeTarget === gift.id ? notices : undefined}>
-              {' '}<a href="#" aria-label={`Delete ${gift.name}`} aria-disabled={disabled || undefined} onClick={(event) => { event.preventDefault(); if (!disabled) void deleteGift(gift); }}>delete</a>
-              {' '}<a href="#" aria-label={`Move ${gift.name} up`} aria-disabled={disabled || undefined} onClick={(event) => { event.preventDefault(); if (!disabled) void moveGift(index, -1); }}>[+]</a>
-              {' '}<a href="#" aria-label={`Move ${gift.name} down`} aria-disabled={disabled || undefined} onClick={(event) => { event.preventDefault(); if (!disabled) void moveGift(index, 1); }}>[-]</a>
+              <a href="#" aria-label={`Delete ${gift.name}`} aria-disabled={disabled || undefined} onClick={(event) => { event.preventDefault(); if (!disabled) void deleteGift(gift); }}>delete</a>
             </GiftForm>}
           </div>
         </div></>}

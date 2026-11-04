@@ -79,11 +79,16 @@ test('cookie-owned lists preserve the complete gift workflow and public sharing'
   await expect(page.getByRole('article').first()).toContainText('$0.00');
 
   const socks = page.getByRole('article', { name: 'More socks', exact: true });
-  await expect(socks.getByRole('link', { name: 'Move More socks down' })).toBeHidden();
   await page.getByRole('link', { name: 'Edit More socks' }).click();
-  await expect(socks.getByRole('link', { name: 'Move More socks down' })).toHaveText('[-]');
-  await activatePopoverLink(socks.getByRole('link', { name: 'Move More socks down' }));
-  await expect(socks.getByRole('link', { name: 'Move More socks down' })).toBeHidden();
+  await expect(socks.getByRole('link', { name: /^Move / })).toHaveCount(0);
+  const rail = page.getByRole('complementary', { name: 'Reorder gifts', exact: true });
+  const thumbnail = rail.getByRole('button', { name: 'Reorder More socks', exact: true });
+  await thumbnail.focus();
+  await thumbnail.press('Space');
+  await expect(thumbnail.locator('..')).toHaveAttribute('data-dragging', 'true');
+  await thumbnail.press('ArrowDown');
+  await thumbnail.press('Space');
+  await expect(rail).toHaveAttribute('aria-busy', 'false');
   await expect(page.getByRole('article').first()).toHaveAttribute('aria-label', 'A cozy sweater');
   const editor = page.getByRole('article', { name: 'A cozy sweater', exact: true });
   await expect(editor.getByLabel('Gift name', { exact: true })).toBeHidden();

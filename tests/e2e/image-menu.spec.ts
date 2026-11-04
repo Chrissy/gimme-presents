@@ -49,6 +49,7 @@ test('plus menu uploads a preview on save and supports editing and removal', asy
   await page.reload();
   await page.getByRole('link', { name: 'Edit Uploaded gift', exact: true }).click();
   await expect(article.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', /^\/media\//);
+  await page.screenshot({ path: testInfo.outputPath('edit-gift-footer.png'), fullPage: true });
   await article.getByLabel('Gift name', { exact: true }).fill('Renamed upload');
   await article.getByRole('link', { name: 'update my gift!' }).click();
   const renamed = page.getByRole('article', { name: 'Renamed upload', exact: true });
