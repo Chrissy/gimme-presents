@@ -7,6 +7,12 @@ If lookup fails, the same form opens for manual completion. The full form opens 
 finishes or reaches its deadline; late results cannot overwrite edits. Existing
 gift editing is unchanged.
 
+The draft's back link returns to the URL field and discards unsaved fields and
+image selections. It preserves the URL without another automatic lookup until
+the link is edited; Enter can retry it. The image control sits to the left of
+the create action. Image selection only previews locally or from the source URL;
+uploading or importing into hosted storage happens on explicit gift save.
+
 ```mermaid
 sequenceDiagram
   participant Browser

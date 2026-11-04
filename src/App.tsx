@@ -84,7 +84,7 @@ function giftInput(gift: Gift): GiftDraft {
   return { name: gift.name, url: gift.url, image: gift.image, imageUrl: gift.imageUrl, price: gift.priceCents === null ? '' : String(gift.priceCents / 100) };
 }
 
-function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice }: {
+function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, onBack }: {
   value: GiftDraft;
   onChange: (value: GiftDraft) => void;
   onSubmit: () => void;
@@ -92,10 +92,13 @@ function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice }
   editing?: boolean;
   children?: ReactNode;
   notice?: ReactNode;
+  onBack?: () => void;
 }) {
   const formRef = useRef<HTMLFormElement>(null);
   return <form ref={formRef} aria-busy={busy} className={editing ? 'edit_gift' : 'new_gift'} onSubmit={(event) => { event.preventDefault(); onSubmit(); }}>
-    <h3 className="add-message">Add a sweet present!</h3>
+    {onBack ? <a href="#" className="gift-back" aria-disabled={busy} onClick={event => {
+      event.preventDefault(); if (!busy) onBack();
+    }}>back</a> : <h3 className="add-message">Add a sweet present!</h3>}
     <div className="form_block primary">
       <input type="text" disabled={busy} aria-label="Gift name" name="name" value={value.name} placeholder="Name"
         onChange={(event) => onChange({ ...value, name: event.target.value })} />{' '}
@@ -122,6 +125,7 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
 }) {
   const [stage, setStage] = useState<'url' | 'loading' | 'edit'>('url');
   const [message, setMessage] = useState('');
+  const [autoLookup, setAutoLookup] = useState(true);
   const active = useRef<AbortController | null>(null);
   useEffect(() => () => active.current?.abort(), []);
   const suggest = useCallback(async () => {
@@ -151,18 +155,24 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
     }
   }, [busy, listId, onChange, value.url]);
   useEffect(() => {
-    if (stage !== 'url' || busy || !safeRemoteUrl(value.url.trim())) return;
+    if (stage !== 'url' || !autoLookup || busy || !safeRemoteUrl(value.url.trim())) return;
     // Let typing or pasting settle before spending a lookup allowance.
     const timer = setTimeout(() => { void suggest(); }, 400);
     return () => clearTimeout(timer);
-  }, [busy, stage, suggest, value.url]);
+  }, [autoLookup, busy, stage, suggest, value.url]);
   if (stage === 'edit') return <GiftForm value={value} onChange={onChange} onSubmit={onSubmit} busy={busy}
+    onBack={() => {
+      onChange({ ...blankGift, url: value.url });
+      setAutoLookup(false); setMessage(''); setStage('url');
+    }}
     notice={<>{message && <p role="status">{message}</p>}{notice}</>} />;
   return <form className="new_gift" onSubmit={event => { event.preventDefault(); void suggest(); }} aria-busy={stage === 'loading'}>
     <h3 className="add-message">Add a sweet present!</h3>
     <div className="form_block primary">
       <input type="text" aria-label="Gift URL" placeholder="Paste a gift link" maxLength={2048} required
-        value={value.url} onChange={event => onChange({ ...value, url: event.target.value })} disabled={busy || stage === 'loading'} /><br />
+        autoFocus={!autoLookup} value={value.url} onChange={event => {
+          setAutoLookup(true); onChange({ ...value, url: event.target.value });
+        }} disabled={busy || stage === 'loading'} /><br />
       {stage === 'loading' && <span className="gift-saving" role="status">Checking your gift…</span>}
     </div>
     {notice}

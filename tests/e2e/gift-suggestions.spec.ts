@@ -24,6 +24,8 @@ test('a link reveals an editable draft, saves user changes, and returns to URL e
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('a mug for my personality substitute');
   await expect(add.getByLabel('Price in dollars')).toHaveValue('24.50');
   await expect(add.getByRole('img', { name: 'Image preview' })).toBeVisible();
+  await expect(add.getByRole('heading')).toHaveCount(0);
+  await expect(add.getByRole('link', { name: 'back', exact: true })).toBeVisible();
   await expect(page.getByRole('article')).toHaveCount(0);
   await page.screenshot({ path: info.outputPath('gift-draft.png'), fullPage: true });
   await add.getByLabel('Gift name', { exact: true }).fill('The mug I actually want');
@@ -34,6 +36,41 @@ test('a link reveals an editable draft, saves user changes, and returns to URL e
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveCount(0);
   await expect(add.getByLabel('Gift URL')).toHaveValue('');
   expect(calls).toBe(1);
+});
+
+test('back returns to the preserved link without a new lookup or uploading the discarded image', async ({ page }, info) => {
+  const add = await openList(page);
+  await page.clock.install();
+  const lookups: string[] = [];
+  const writes: string[] = [];
+  page.on('request', request => {
+    if (request.method() !== 'GET' && request.url().includes('/api/') && !request.url().endsWith('/gift-suggestion')) writes.push(request.url());
+  });
+  await page.route('**/api/lists/*/gift-suggestion', route => {
+    const { url } = route.request().postDataJSON();
+    lookups.push(url);
+    return route.fulfill({ json: { draft: { name: 'stupid mug', url, price: '', image: '' } } });
+  });
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/mug');
+  await page.clock.runFor(400);
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('stupid mug');
+  await add.getByLabel('Upload image', { exact: true }).setInputFiles('public/edit.png');
+  await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', /^blob:/);
+  await add.getByRole('link', { name: 'back', exact: true }).click();
+  await expect(add.getByRole('heading', { name: 'Add a sweet present!' })).toBeVisible();
+  await expect(add.getByLabel('Gift URL')).toHaveValue('https://shop.example.com/mug');
+  await expect(add.getByLabel('Gift URL')).toBeFocused();
+  await page.clock.runFor(4000);
+  expect(lookups).toHaveLength(1);
+  expect(writes).toEqual([]);
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveCount(0);
+  await page.screenshot({ path: info.outputPath('gift-back.png'), fullPage: true });
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
+  await page.clock.runFor(400);
+  await expect(add.getByLabel('Gift name', { exact: true })).toBeVisible();
+  expect(lookups).toEqual(['https://shop.example.com/mug', 'https://shop.example.com/shoes']);
+  await expect(add.getByRole('img', { name: 'Image preview' })).toHaveCount(0);
+  expect(writes).toEqual([]);
 });
 
 test('limits reveal the manual form without losing the URL', async ({ page }, info) => {

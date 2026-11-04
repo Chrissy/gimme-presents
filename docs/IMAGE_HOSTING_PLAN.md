@@ -22,7 +22,7 @@ Add reference-aware cleanup with a dry-run report and grace period for failed wr
 
 ## 3. Add the image capture UI (implemented ahead of migration)
 
-A small `+` button at the bottom right of each gift form replaces the permanent “Link to a photo” input. Its menu offers **Upload from device** and **Paste image URL**. Image clipboard paste is scoped to the gift form and uses the file path; ordinary text paste is unchanged. One image is supported per gift.
+A small `+` button beside the save action replaces the permanent “Link to a photo” input. It sits on the left in the new-gift form. Its menu offers **Upload from device** and **Paste image URL**. Image clipboard paste is scoped to the gift form and uses the file path; ordinary text paste is unchanged. One image is supported per gift.
 
 All three sources show a removable thumbnail before saving. Local files use temporary browser object URLs, which are revoked when replaced or the form unmounts. URL entry exists only in the menu. Escape and outside clicks dismiss the popover. Existing saved images appear in the editor preview; `+` replaces them and `×` removes them. Mobile editing keeps the controls within the viewport.
 

@@ -13,6 +13,10 @@ async function createList(page: Page) {
 
 test('plus menu uploads a preview on save and supports editing and removal', async ({ page }, testInfo) => {
   const add = await createList(page);
+  const writes: string[] = [];
+  page.on('request', request => {
+    if (request.method() !== 'GET' && request.url().includes('/api/')) writes.push(request.headers()['content-type'] ?? '');
+  });
   await expect(page.getByPlaceholder('Link to a photo')).toHaveCount(0);
   await expect(add.getByRole('textbox', { name: 'Image URL', exact: true })).toHaveCount(0);
   await add.getByRole('button', { name: 'Add image', exact: true }).click();
@@ -29,10 +33,13 @@ test('plus menu uploads a preview on save and supports editing and removal', asy
   await expect.poll(() => add.getByRole('img', { name: 'Image preview' }).evaluate((image: HTMLImageElement) => image.naturalWidth)).toBe(13);
   await expect(page.getByRole('article')).toHaveCount(0);
   await page.screenshot({ path: testInfo.outputPath('image-preview.png'), fullPage: true });
+  expect(writes).toEqual([]);
 
   // Failed gift validation retains the selected file for a retry.
   await add.getByRole('link', { name: 'create my gift!' }).click();
   await expect(add.getByRole('alert')).toContainText('gift name');
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toContain('multipart/form-data');
   await expect(add.getByRole('img', { name: 'Image preview' })).toBeVisible();
   await add.getByLabel('Gift name', { exact: true }).fill('Uploaded gift');
   await add.getByRole('link', { name: 'create my gift!' }).click();
@@ -55,6 +62,8 @@ test('plus menu uploads a preview on save and supports editing and removal', asy
 
 test('URL entry lives in the plus menu, previews before save, and preserves a failed draft', async ({ page }) => {
   const add = await createList(page);
+  let writes = 0;
+  page.on('request', request => { if (request.method() !== 'GET' && request.url().includes('/api/')) writes++; });
   await page.route('https://images.example.com/photo.png', route => route.fulfill({ path: 'public/edit.png', contentType: 'image/png' }));
   await add.getByRole('button', { name: 'Add image', exact: true }).click();
   await add.getByRole('button', { name: 'Paste image URL' }).click();
@@ -67,10 +76,12 @@ test('URL entry lives in the plus menu, previews before save, and preserves a fa
   await expect(add.getByRole('dialog')).toHaveCount(0);
   await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', 'https://images.example.com/photo.png');
   await expect(page.getByRole('article')).toHaveCount(0);
+  expect(writes).toBe(0);
   await add.getByLabel('Gift name', { exact: true }).fill('Keep this draft');
   await page.route('**/api/lists/*/gifts', route => route.fulfill({ status: 422, json: { error: 'Couldn’t download that image. Try another image link.' } }));
   await add.getByRole('link', { name: 'create my gift!' }).click();
   await expect(add.getByRole('alert')).toContainText('Couldn’t download');
+  expect(writes).toBe(1);
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('Keep this draft');
   await expect(add.getByRole('img', { name: 'Image preview' })).toBeVisible();
   await page.unroute('**/api/lists/*/gifts');
@@ -83,6 +94,8 @@ test('URL entry lives in the plus menu, previews before save, and preserves a fa
 
 test('clipboard images use the same preview/upload flow and text paste stays untouched', async ({ page }) => {
   const add = await createList(page);
+  let writes = 0;
+  page.on('request', request => { if (request.method() !== 'GET' && request.url().includes('/api/')) writes++; });
   const bytes = Array.from(readFileSync('public/edit.png'));
   const handled = await add.locator('form').evaluate((form, bytes) => {
     const data = new DataTransfer();
@@ -101,9 +114,11 @@ test('clipboard images use the same preview/upload flow and text paste stays unt
     return event.defaultPrevented;
   });
   expect(textHandled).toBe(false);
+  expect(writes).toBe(0);
   await add.getByLabel('Gift name', { exact: true }).fill('Clipboard gift');
   await add.getByRole('link', { name: 'create my gift!' }).click();
   await expect(page.getByRole('img', { name: 'Clipboard gift', exact: true })).toHaveAttribute('src', /^\/media\//);
+  expect(writes).toBe(1);
 });
 
 test('invalid local files do not replace a selected image', async ({ page }) => {
