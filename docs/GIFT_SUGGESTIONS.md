@@ -1,8 +1,9 @@
 # Gift suggestions
 
-New gifts start with a URL. Submitting it returns an editable draft in the
-existing gift form; saving remains a separate action. Manual entry is available
-before, during, and after a lookup. The full form opens once, after the lookup
+New gifts start with a URL. A valid HTTP(S) link starts a lookup automatically
+after 400 ms without further input; Enter starts it immediately. The result opens
+an editable draft in the existing gift form; saving remains a separate action.
+If lookup fails, the same form opens for manual completion. The full form opens once, after the lookup
 finishes or reaches its deadline; late results cannot overwrite edits. Existing
 gift editing is unchanged.
 

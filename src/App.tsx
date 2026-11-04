@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
+import { useCallback, useEffect, useRef, useState, type FormEvent, type ReactNode } from 'react';
 import { Link, Route, Routes, useNavigate, useParams } from 'react-router-dom';
 import type { Gift, GiftInput, GiftSuggestion, ListResponse, MeResponse } from '../shared/api';
 import { errorMessage, request, RequestError, write } from './api';
@@ -124,12 +124,8 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
   const [message, setMessage] = useState('');
   const active = useRef<AbortController | null>(null);
   useEffect(() => () => active.current?.abort(), []);
-  function manual() {
-    active.current?.abort(); active.current = null;
-    setMessage(''); setStage('edit');
-  }
-  async function suggest(event: FormEvent) {
-    event.preventDefault(); if (busy || active.current) return;
+  const suggest = useCallback(async () => {
+    if (busy || active.current || !safeRemoteUrl(value.url.trim())) return;
     const controller = new AbortController(); active.current = controller;
     setStage('loading'); setMessage('');
     const timeout = setTimeout(() => {
@@ -140,7 +136,7 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
     controller.signal.addEventListener('abort', () => clearTimeout(timeout), { once: true });
     try {
       const result = await request<GiftSuggestion>(`/api/lists/${listId}/gift-suggestion`, {
-        method: 'POST', body: JSON.stringify({ url: value.url }), signal: controller.signal,
+        method: 'POST', body: JSON.stringify({ url: value.url.trim() }), signal: controller.signal,
       });
       if (controller.signal.aborted || active.current !== controller) return;
       onChange(result.draft); setMessage(result.notice ?? '');
@@ -153,16 +149,20 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
         active.current = null; setStage('edit');
       }
     }
-  }
+  }, [busy, listId, onChange, value.url]);
+  useEffect(() => {
+    if (stage !== 'url' || busy || !safeRemoteUrl(value.url.trim())) return;
+    // Let typing or pasting settle before spending a lookup allowance.
+    const timer = setTimeout(() => { void suggest(); }, 400);
+    return () => clearTimeout(timer);
+  }, [busy, stage, suggest, value.url]);
   if (stage === 'edit') return <GiftForm value={value} onChange={onChange} onSubmit={onSubmit} busy={busy}
     notice={<>{message && <p role="status">{message}</p>}{notice}</>} />;
-  return <form className="new_gift" onSubmit={suggest} aria-busy={stage === 'loading'}>
+  return <form className="new_gift" onSubmit={event => { event.preventDefault(); void suggest(); }} aria-busy={stage === 'loading'}>
     <h3 className="add-message">Add a sweet present!</h3>
     <div className="form_block primary">
       <input type="text" aria-label="Gift URL" placeholder="Paste a gift link" maxLength={2048} required
         value={value.url} onChange={event => onChange({ ...value, url: event.target.value })} disabled={busy || stage === 'loading'} /><br />
-      <SubmitLink disabled={busy || stage === 'loading'}>fill in my gift!</SubmitLink>{' '}
-      <button type="button" className="text-button" disabled={busy} onClick={manual}>add manually</button>
       {stage === 'loading' && <span className="gift-saving" role="status">Checking your gift…</span>}
     </div>
     {notice}

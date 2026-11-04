@@ -1,5 +1,5 @@
 import type { Page } from '@playwright/test';
-import { expect, test } from './fixtures';
+import { expect, test, openGiftForm } from './fixtures';
 import { readFileSync } from 'node:fs';
 
 async function createList(page: Page) {
@@ -7,7 +7,7 @@ async function createList(page: Page) {
   await page.getByLabel('List name', { exact: true }).fill('Image menu test');
   await page.getByRole('link', { name: 'create my list!' }).click();
   await expect(page.getByRole('heading', { name: 'Add a sweet present!' })).toBeVisible();
-  await page.getByRole('button', { name: 'add manually' }).click();
+  await openGiftForm(page);
   return page.getByRole('complementary', { name: 'Add a gift' });
 }
 
