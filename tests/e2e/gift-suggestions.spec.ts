@@ -17,7 +17,7 @@ test('manual entry opens a blank draft and saves a title and picture without a l
     if (request.method() !== 'GET' && request.url().includes('/api/')) writes.push(request.url());
   });
   await page.screenshot({ path: info.outputPath('manual-entry-button.png'), fullPage: true });
-  await add.getByRole('button', { name: 'Manually enter gift', exact: true }).click();
+  await add.getByRole('button', { name: 'or manually enter a gift', exact: true }).click();
   await expect(add.getByLabel('Gift name', { exact: true })).toBeFocused();
   for (const label of ['Gift name', 'Gift URL', 'Price in dollars']) {
     await expect(add.getByLabel(label, { exact: true })).toHaveValue('');
@@ -27,7 +27,7 @@ test('manual entry opens a blank draft and saves a title and picture without a l
   // A pending automatic lookup must also be canceled when manual entry is chosen.
   await add.getByRole('link', { name: '< back', exact: true }).click();
   await add.getByLabel('Gift URL').fill('https://shop.example.com/unneeded');
-  await add.getByRole('button', { name: 'Manually enter gift', exact: true }).click();
+  await add.getByRole('button', { name: 'or manually enter a gift', exact: true }).click();
   await page.clock.runFor(4000);
   await expect(add.getByLabel('Gift URL')).toHaveValue('');
   await add.getByLabel('Gift name', { exact: true }).fill('Cool jewelry');
@@ -40,7 +40,7 @@ test('manual entry opens a blank draft and saves a title and picture without a l
   await expect(article.getByRole('img')).toHaveAttribute('src', /^\/media\//);
   expect(writes).toHaveLength(1);
   expect(writes[0]).toMatch(/\/gifts$/);
-  await expect(add.getByRole('button', { name: 'Manually enter gift', exact: true })).toBeVisible();
+  await expect(add.getByRole('button', { name: 'or manually enter a gift', exact: true })).toBeVisible();
   await page.reload();
   await expect(article).toBeVisible();
   const saved = await (await page.request.get(`/api/lists${new URL(page.url()).pathname}`)).json();
@@ -62,7 +62,7 @@ test('manual entry cancels an active lookup and late results cannot overwrite th
   await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
   await page.clock.runFor(400);
   await expect(add.getByRole('status')).toContainText('Checking');
-  await add.getByRole('button', { name: 'Manually enter gift', exact: true }).click();
+  await add.getByRole('button', { name: 'or manually enter a gift', exact: true }).click();
   await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('');
   await add.getByLabel('Gift name', { exact: true }).fill('Cool hats');
   release(); await done;
@@ -160,7 +160,7 @@ test('lookup waits for a complete link and uses only the final URL after typing 
   });
   const input = add.getByLabel('Gift URL');
   await expect(add.getByRole('link', { name: 'fill in my gift!' })).toHaveCount(0);
-  await expect(add.getByRole('button', { name: 'Manually enter gift', exact: true })).toBeVisible();
+  await expect(add.getByRole('button', { name: 'or manually enter a gift', exact: true })).toBeVisible();
   await input.fill('https://');
   await page.clock.runFor(1000);
   expect(urls).toEqual([]);

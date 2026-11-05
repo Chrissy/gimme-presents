@@ -183,7 +183,7 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
         active.current?.abort(); active.current = null;
         onChange({ ...blankGift });
         setAutoLookup(false); setMessage(''); setStage('edit');
-      }}>Manually enter gift</button>
+      }}>or manually enter a gift</button>
     </div>
     {notice}
   </form>;

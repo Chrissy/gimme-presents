@@ -7,7 +7,7 @@ If lookup fails, the same form opens for manual completion. The full form opens 
 finishes or reaches its deadline; late results cannot overwrite edits. Existing
 gift editing is unchanged.
 
-The secondary **Manually enter gift** button below the URL field opens the same
+The secondary **or manually enter a gift** button below the URL field opens the same
 form with an empty name, link, price, and image. This supports general wishes
 such as jewelry or hats, with an optional picture and no product link. Choosing
 manual entry cancels any pending lookup and ignores late results; it starts no
