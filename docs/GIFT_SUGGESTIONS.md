@@ -7,6 +7,12 @@ If lookup fails, the same form opens for manual completion. The full form opens 
 finishes or reaches its deadline; late results cannot overwrite edits. Existing
 gift editing is unchanged.
 
+The secondary **Manually enter gift** button below the URL field opens the same
+form with an empty name, link, price, and image. This supports general wishes
+such as jewelry or hats, with an optional picture and no product link. Choosing
+manual entry cancels any pending lookup and ignores late results; it starts no
+new lookup or image upload. Images upload only when the gift is explicitly saved.
+
 The draft's back link returns to the URL field and discards unsaved fields and
 image selections. It preserves the URL without another automatic lookup until
 the link is edited; Enter can retry it. The image control sits to the left of

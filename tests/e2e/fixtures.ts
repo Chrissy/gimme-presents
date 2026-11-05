@@ -33,11 +33,7 @@ export { expect };
 
 // Other workflow tests start from an empty editable draft, without a retailer request.
 export async function openGiftForm(page: Page) {
-  await page.route('**/api/lists/*/gift-suggestion', route => route.fulfill({
-    json: { draft: { name: '', url: route.request().postDataJSON().url, image: '', price: '' } },
-  }), { times: 1 });
   const add = page.getByRole('complementary', { name: 'Add a gift' });
-  await add.getByLabel('Gift URL').fill('https://shop.example.com/gift');
+  await add.getByRole('button', { name: 'Manually enter gift', exact: true }).click();
   await expect(add.getByLabel('Gift name', { exact: true })).toBeVisible();
-  await add.getByLabel('Gift URL').fill('');
 }

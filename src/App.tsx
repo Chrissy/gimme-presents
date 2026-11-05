@@ -105,7 +105,7 @@ function GiftForm({ value, onChange, onSubmit, busy, editing, children, notice, 
       event.preventDefault(); if (!busy) onBack();
     }}>{'< back'}</a> : <h3 className="add-message">Add a sweet present!</h3>}
     <div className="form_block primary">
-      <input type="text" disabled={busy} aria-label="Gift name" name="name" value={value.name} placeholder="Name"
+      <input type="text" disabled={busy} aria-label="Gift name" name="name" value={value.name} placeholder="Name" autoFocus={!!onBack}
         onChange={(event) => onChange({ ...value, name: event.target.value })} />{' '}
       <input type="text" disabled={busy} aria-label="Gift URL" name="url" value={value.url} placeholder="URL"
         onChange={(event) => onChange({ ...value, url: event.target.value })} />{' '}
@@ -179,6 +179,11 @@ function NewGiftForm({ listId, value, onChange, onSubmit, busy, notice }: {
           setAutoLookup(true); onChange({ ...value, url: event.target.value });
         }} disabled={busy || stage === 'loading'} /><br />
       {stage === 'loading' && <span className="gift-saving" role="status">Checking your gift…</span>}
+      <button type="button" className="text-button" disabled={busy} onClick={() => {
+        active.current?.abort(); active.current = null;
+        onChange({ ...blankGift });
+        setAutoLookup(false); setMessage(''); setStage('edit');
+      }}>Manually enter gift</button>
     </div>
     {notice}
   </form>;
