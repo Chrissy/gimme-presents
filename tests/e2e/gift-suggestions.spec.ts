@@ -9,6 +9,70 @@ async function openList(page: Page) {
   return page.getByRole('complementary', { name: 'Add a gift' });
 }
 
+test('manual entry opens a blank draft and saves a title and picture without a link or lookup', async ({ page }, info) => {
+  const add = await openList(page);
+  await page.clock.install();
+  const writes: string[] = [];
+  page.on('request', request => {
+    if (request.method() !== 'GET' && request.url().includes('/api/')) writes.push(request.url());
+  });
+  await page.screenshot({ path: info.outputPath('manual-entry-button.png'), fullPage: true });
+  await add.getByRole('button', { name: 'or manually enter a gift', exact: true }).click();
+  await expect(add.getByLabel('Gift name', { exact: true })).toBeFocused();
+  for (const label of ['Gift name', 'Gift URL', 'Price in dollars']) {
+    await expect(add.getByLabel(label, { exact: true })).toHaveValue('');
+  }
+  await expect(add.getByRole('img', { name: 'Image preview' })).toHaveCount(0);
+
+  // A pending automatic lookup must also be canceled when manual entry is chosen.
+  await add.getByRole('link', { name: '< back', exact: true }).click();
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/unneeded');
+  await add.getByRole('button', { name: 'or manually enter a gift', exact: true }).click();
+  await page.clock.runFor(4000);
+  await expect(add.getByLabel('Gift URL')).toHaveValue('');
+  await add.getByLabel('Gift name', { exact: true }).fill('Cool jewelry');
+  await add.getByLabel('Upload image', { exact: true }).setInputFiles('public/edit.png');
+  await expect(add.getByRole('img', { name: 'Image preview' })).toHaveAttribute('src', /^blob:/);
+  expect(writes).toEqual([]);
+  await page.screenshot({ path: info.outputPath('manual-gift-draft.png'), fullPage: true });
+  await add.getByRole('link', { name: 'create my gift!' }).click();
+  const article = page.getByRole('article', { name: 'Cool jewelry', exact: true });
+  await expect(article.getByRole('img')).toHaveAttribute('src', /^\/media\//);
+  expect(writes).toHaveLength(1);
+  expect(writes[0]).toMatch(/\/gifts$/);
+  await expect(add.getByRole('button', { name: 'or manually enter a gift', exact: true })).toBeVisible();
+  await page.reload();
+  await expect(article).toBeVisible();
+  const saved = await (await page.request.get(`/api/lists${new URL(page.url()).pathname}`)).json();
+  expect(saved.gifts[0]).toMatchObject({ name: 'Cool jewelry', url: '', priceCents: null });
+});
+
+test('manual entry cancels an active lookup and late results cannot overwrite the blank draft', async ({ page }) => {
+  const add = await openList(page);
+  await page.clock.install();
+  let release!: () => void;
+  const pending = new Promise<void>(resolve => { release = resolve; });
+  let completed!: () => void;
+  const done = new Promise<void>(resolve => { completed = resolve; });
+  await page.route('**/api/lists/*/gift-suggestion', async route => {
+    await pending;
+    await route.fulfill({ json: { draft: { name: 'Too late', url: 'https://shop.example.com/shoes', image: '', price: '999' } } });
+    completed();
+  });
+  await add.getByLabel('Gift URL').fill('https://shop.example.com/shoes');
+  await page.clock.runFor(400);
+  await expect(add.getByRole('status')).toContainText('Checking');
+  await add.getByRole('button', { name: 'or manually enter a gift', exact: true }).click();
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('');
+  await add.getByLabel('Gift name', { exact: true }).fill('Cool hats');
+  release(); await done;
+  await page.clock.runFor(4000);
+  await expect(add.getByLabel('Gift name', { exact: true })).toHaveValue('Cool hats');
+  await expect(add.getByLabel('Gift URL')).toHaveValue('');
+  await expect(add.getByLabel('Price in dollars')).toHaveValue('');
+  await expect(add.getByRole('status')).toHaveCount(0);
+});
+
 test('a link reveals an editable draft, saves user changes, and returns to URL entry', async ({ page }, info) => {
   const add = await openList(page);
   let calls = 0;
@@ -96,7 +160,7 @@ test('lookup waits for a complete link and uses only the final URL after typing 
   });
   const input = add.getByLabel('Gift URL');
   await expect(add.getByRole('link', { name: 'fill in my gift!' })).toHaveCount(0);
-  await expect(add.getByRole('button', { name: 'add manually' })).toHaveCount(0);
+  await expect(add.getByRole('button', { name: 'or manually enter a gift', exact: true })).toBeVisible();
   await input.fill('https://');
   await page.clock.runFor(1000);
   expect(urls).toEqual([]);
