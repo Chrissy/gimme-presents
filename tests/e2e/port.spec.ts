@@ -1,7 +1,7 @@
 import type { Locator } from '@playwright/test';
 import { expect, test, openGiftForm } from './fixtures';
 import { execFileSync } from 'node:child_process';
-import type { ListResponse } from '../../shared/api';
+import type { ListResponse, MeResponse } from '../../shared/api';
 
 function localWrangler(args: string[]) {
   execFileSync(process.execPath, ['node_modules/wrangler/bin/wrangler.js', ...args, '--config', 'wrangler.jsonc', '--persist-to', process.env.GIMME_LOCAL_STATE_DIR!], {
@@ -228,9 +228,12 @@ test('simultaneous lists in two tabs keep the same verified browser owner', asyn
   await expect(page.getByRole('heading', { name: 'Add a sweet present!' })).toBeVisible();
   await expect(second.getByRole('heading', { name: 'Add a sweet present!' })).toBeVisible();
   await page.goto('/');
-  await expect(page.getByRole('link', { name: /First tab Christmas|Second tab Christmas/ })).toHaveCount(0);
+  const newestListLink = page.getByRole('link', { name: /First tab Christmas|Second tab Christmas/ });
+  await expect(newestListLink).toHaveCount(1);
   const response = await context.request.get('/api/me');
-  const { lists } = await response.json() as { lists: { name: string }[] };
+  const { lists } = await response.json() as MeResponse;
   expect(lists.map(list => list.name).sort()).toEqual(['First tab Christmas', 'Second tab Christmas']);
+  await expect(newestListLink).toHaveText(lists[0].name);
+  await expect(newestListLink).toHaveAttribute('href', `/${encodeURIComponent(lists[0].slug)}`);
   await second.close();
 });

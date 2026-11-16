@@ -39,6 +39,9 @@ function HomePage() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const [me, setMe] = useState<MeResponse | null>(null);
+  // The API orders by last edit; this shortcut follows when the list was created.
+  const newestList = me?.verified ? [...me.lists].sort((a, b) =>
+    Date.parse(b.createdAt) - Date.parse(a.createdAt) || b.id - a.id)[0] : undefined;
   useEffect(() => {
     const controller = new AbortController();
     request<MeResponse>('/api/me', { signal: controller.signal }).then(setMe).catch(() => {});
@@ -78,6 +81,7 @@ function HomePage() {
       </form>
       <p className="access-footer">{me?.verified ? <>Creating lists as {me.email}.{' '}
         <button className="text-button" disabled={busy} onClick={() => void changeEmail()}>Use another email</button>
+        {newestList && <><br />newest list: <Link to={`/${encodeURIComponent(newestList.slug)}`}>{newestList.name}</Link></>}
       </> : <Link to="/auth/recover">Access my old lists</Link>}</p>
     </>}
   </main>;
